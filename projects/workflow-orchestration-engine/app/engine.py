@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from math import prod
-from typing import Any, Callable
+from typing import Any
 
 Action = Callable[[dict[str, Any], dict[str, Any]], Any]
 
@@ -70,7 +71,9 @@ def builtin_actions() -> dict[str, Action]:
     }
 
 
-def validate_workflow(steps: list[WorkflowStep], actions: dict[str, Action] | None = None) -> list[str]:
+def validate_workflow(
+    steps: list[WorkflowStep], actions: dict[str, Action] | None = None
+) -> list[str]:
     if not steps:
         raise ValueError("A workflow must contain at least one step")
 
@@ -89,7 +92,9 @@ def validate_workflow(steps: list[WorkflowStep], actions: dict[str, Action] | No
             raise ValueError(f"Step '{step.name}' cannot depend on itself")
         missing = set(step.depends_on) - known
         if missing:
-            raise ValueError(f"Step '{step.name}' has unknown dependencies: {sorted(missing)}")
+            raise ValueError(
+                f"Step '{step.name}' has unknown dependencies: {sorted(missing)}"
+            )
 
     indegree = {step.name: len(set(step.depends_on)) for step in steps}
     children: dict[str, list[str]] = {name: [] for name in names}
@@ -147,7 +152,8 @@ def execute_workflow(
                 outcome.status = "succeeded"
                 outcome.error = None
                 break
-            except Exception as exc:  # Actions are extension points; failures are captured per step.
+            # Actions are extension points; capture their failures per step.
+            except Exception as exc:
                 outcome.error = f"{type(exc).__name__}: {exc}"
 
         outcomes[name] = outcome
