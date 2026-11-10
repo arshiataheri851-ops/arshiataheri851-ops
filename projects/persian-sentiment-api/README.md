@@ -26,30 +26,25 @@ Positive / Negative scores
 
 ## Quick start
 
-Python 3.11+ is recommended. After cloning this portfolio repository, enter the project folder first:
+Python 3.11+ is supported. For a Windows setup from the **repository root** (without running the PowerShell activation script), follow [the Windows setup guide](../../docs/LOCAL_SETUP_WINDOWS.md).
 
-```bash
-cd projects/persian-sentiment-api
-```
+For any operating system, from this project directory:
 
 ```bash
 python -m venv .venv
-# Windows PowerShell:
-.venv\Scripts\Activate.ps1
-# macOS / Linux:
-source .venv/bin/activate
-
 python -m pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 
-The API and tests can run without downloading the model. For real inference, install the optional model dependencies:
+The API and tests run without downloading model weights. Tests use a fake predictor and do not require the pretrained model.
+
+For real inference, install the optional model dependencies:
 
 ```bash
 python -m pip install -e ".[inference]"
 ```
 
-The first prediction downloads the model from Hugging Face. This is a large pretrained model, so the first request may take time and memory.
+The first real prediction downloads the pinned pretrained model from Hugging Face. The initial download can take time and requires several hundred megabytes of disk space.
 
 Interactive docs: http://127.0.0.1:8000/docs
 
