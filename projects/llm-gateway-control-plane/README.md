@@ -1,5 +1,7 @@
 # LLM Gateway Control Plane
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
+
 A provider-agnostic API gateway for chat models. It demonstrates model-provider abstraction, priority-aware routing, per-request spend ceilings, bounded retries, and a safe local mock fallback.
 
 ## Highlights
