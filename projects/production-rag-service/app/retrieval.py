@@ -3,7 +3,7 @@ import math
 import re
 from typing import Any
 
-_TOKEN_RE = re.compile(r"[\\w\\u0600-\\u06FF]+", re.UNICODE)
+_TOKEN_RE = re.compile(r"[\w\u0600-\u06FF]+", re.UNICODE)
 
 
 def tokenize(text: str) -> list[str]:
