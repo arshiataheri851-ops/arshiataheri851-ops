@@ -1,8 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from app import main
-from app.store import SQLiteStore
 from app.retrieval import BM25Retriever
+from app.store import SQLiteStore
 
 
 @pytest.fixture
