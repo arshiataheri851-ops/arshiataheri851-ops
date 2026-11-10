@@ -1,0 +1,11 @@
+Document retrieval
+
+A retrieval system searches a collection of documents and returns the passages most relevant to a query. Each passage should preserve source metadata so a user can inspect where the information came from.
+
+TF-IDF baseline
+
+TF-IDF represents text using term importance. It is fast and useful as a lexical baseline, but it may miss paraphrases and semantic relationships when query and document use different words.
+
+Evaluation
+
+A retrieval evaluation set contains example questions and relevant source passages. Metrics such as precision at k and recall at k help measure whether useful passages appear near the top of the ranked results.
