@@ -14,11 +14,9 @@ def split_text(text: str, chunk_size: int = 700, overlap: int = 100) -> list[Tex
         raise ValueError("chunk_size must be positive")
     if overlap < 0 or overlap >= chunk_size:
         raise ValueError("overlap must be between zero and chunk_size - 1")
-
     words = re.findall(r"\S+", text.strip())
     if not words:
         return []
-
     chunks: list[TextChunk] = []
     start = 0
     while start < len(words):
