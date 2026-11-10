@@ -5,7 +5,8 @@
 
 <p align="center">
   <a href="https://github.com/arshiataheri851-ops">GitHub</a> ·
-  <a href="https://www.linkedin.com/in/arshia-taher-5b85b33b2/">LinkedIn</a>
+  <a href="https://github.com/arshiataheri851-ops/arshia-taheri851">Portfolio</a> ·
+  <a href="https://www.linkedin.com/in/arshia-taheri-5b85b33b2/">LinkedIn</a>
 </p>
 
 ---
