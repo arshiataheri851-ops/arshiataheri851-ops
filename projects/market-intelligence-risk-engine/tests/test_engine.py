@@ -46,3 +46,21 @@ def test_inconsistent_ohlc_values_are_rejected() -> None:
 def test_invalid_window_is_rejected() -> None:
     with pytest.raises(ValueError, match="window"):
         build_report([], window=1)
+
+
+def test_non_finite_market_values_are_rejected() -> None:
+    row = {
+        "timestamp": "2026-01-01",
+        "open": "100",
+        "high": "102",
+        "low": "99",
+        "close": "nan",
+        "volume": "1000",
+    }
+    with pytest.raises(ValueError, match="finite"):
+        validate_row(row, 2)
+
+
+def test_non_finite_alert_threshold_is_rejected() -> None:
+    with pytest.raises(ValueError, match="finite and positive"):
+        build_report([], alert_threshold_pct=float("inf"))
