@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#050f20"/><stop offset="1" stop-color="#0d253e"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#19bebe" stop-opacity=".24"/><stop offset="1" stop-color="#19bebe" stop-opacity="0"/></radialGradient>
+ <linearGradient id="accent"><stop stop-color="#49d6c8"/><stop offset="1" stop-color="#6d8cff"/></linearGradient>
+</defs>
+<rect width="1024" height="1024" rx="210" fill="url(#bg)"/>
+<circle cx="512" cy="512" r="475" fill="url(#glow)"/>
+<g fill="none" stroke="#2baecf" stroke-opacity=".55" stroke-width="6">
+ <path d="M210 350 330 195 690 195 815 350 690 830 330 830Z"/>
+ <circle cx="512" cy="512" r="420" stroke-opacity=".5"/>
+ <circle cx="512" cy="512" r="375" stroke-opacity=".35"/>
+</g>
+<g fill="#4bdccd"><circle cx="210" cy="350" r="11"/><circle cx="330" cy="195" r="11"/><circle cx="690" cy="195" r="11"/><circle cx="815" cy="350" r="11"/><circle cx="690" cy="830" r="11"/><circle cx="330" cy="830" r="11"/></g>
+<rect x="180" y="180" width="664" height="664" rx="170" fill="#07162a" fill-opacity=".94" stroke="#48cfce" stroke-width="10"/>
+<text x="512" y="650" text-anchor="middle" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="330" font-weight="700" fill="#eff8ff">AT</text>
+<rect x="365" y="725" width="295" height="15" rx="7" fill="url(#accent)"/>
+</svg>
