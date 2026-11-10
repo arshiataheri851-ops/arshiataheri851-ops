@@ -5,7 +5,7 @@
 
 <p align="center">
   <a href="https://github.com/arshiataheri851-ops">GitHub</a> ·
-  <a href="https://www.linkedin.com/in/arshia-taheri-5b85b33b2/">LinkedIn</a>
+  <a href="https://www.linkedin.com/in/arshia-taher-5b85b33b2/">LinkedIn</a>
 </p>
 
 ---
@@ -49,6 +49,21 @@ I am especially interested in production-oriented AI systems, Persian-language N
   <img alt="Apache Kafka" src="https://img.shields.io/badge/Kafka-231F20?style=flat-square&logo=apachekafka&logoColor=white"/>
 </p>
 
+## Featured projects
+
+### 1. [Persian Sentiment API](projects/persian-sentiment-api/README.md)
+[![Persian Sentiment API CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
+
+FastAPI inference service for Persian review sentiment using a pinned pretrained model. Includes conservative normalization, single and batch inference, health checks, Docker support, automated tests, CI, and an optional reproducible evaluation script. Benchmark scores are intentionally not claimed until measured.
+
+### 2. [ML Model Serving Platform](projects/ml-model-serving-platform/README.md)
+A learning implementation of a versioned scikit-learn model artifact, reproducible training script, held-out evaluation, and validated FastAPI inference endpoint. Uses the public Iris dataset.
+
+### 3. [Grounded Document Retrieval API](projects/grounded-document-retrieval/README.md)
+A source-aware document retrieval baseline using TF-IDF, cosine similarity, local text documents, and FastAPI. This is the retrieval layer for a future RAG system; it does not claim LLM-generated answers.
+
+### 4. [Market Intelligence & Risk Analytics](projects/market-intelligence-risk-engine/README.md)
+An educational OHLCV processing pipeline with input validation, moving averages, daily-change monitoring, and CSV reporting. Includes synthetic sample data and does not provide trading recommendations.
 
 ## Profile branding
 
@@ -56,30 +71,10 @@ I am especially interested in production-oriented AI systems, Persian-language N
 - [Social preview artwork (SVG)](assets/social-preview.svg)
 - [Profile finishing steps](docs/PROFILE_FINISHING_STEPS.md)
 
-## Featured implementation
-
-### [Persian Sentiment API](projects/persian-sentiment-api/README.md)
-[![Persian Sentiment API CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
-A FastAPI service for Persian review sentiment with a pinned pretrained model, conservative text normalization, batch inference, Docker, CI, and an optional reproducible evaluation script. The code and test suite are public; benchmark results are intentionally not claimed until measured.
-
-## Project directions
-
-The following are the engineering themes I use to guide portfolio work. Each implementation will be linked here once its code, setup instructions, and evaluation notes are published.
+## Project roadmap
 
 - [Portfolio project roadmap](docs/PROJECT_ROADMAP.md)
 - [Reusable project showcase template](docs/PROJECT_SHOWCASE_TEMPLATE.md)
-
-### 1. Real-time market intelligence & risk analytics
-Data ingestion for market and order-book feeds, feature generation, analytical signals, and risk notifications.
-
-### 2. Persian NLP & speech technology
-Text classification, sentiment analysis, and speech-recognition evaluation for Persian-language data.
-
-### 3. Production-ready model serving
-A tested inference API with input validation, model versioning, Docker-based deployment, logging, and monitoring.
-
-### 4. Retrieval-augmented AI applications
-Document ingestion, chunking, embeddings, retrieval evaluation, grounded generation, and source-aware answers.
 
 ## How I approach engineering
 
@@ -91,7 +86,7 @@ Document ingestion, chunking, embeddings, retrieval evaluation, grounded generat
 ## Contact
 
 - GitHub: [@arshiataheri851-ops](https://github.com/arshiataheri851-ops)
-- LinkedIn: [Arshia Taheri](https://www.linkedin.com/in/arshia-taheri-5b85b33b2/)
+- LinkedIn: [Arshia Taher](https://www.linkedin.com/in/arshia-taher-5b85b33b2/)
 
 ---
 
