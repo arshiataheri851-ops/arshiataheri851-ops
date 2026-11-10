@@ -15,8 +15,6 @@ class Settings(BaseSettings):
 
     model_id: str = DEFAULT_MODEL_ID
     model_revision: str = DEFAULT_MODEL_REVISION
-    max_input_chars: int = 4000
-    max_batch_size: int = 32
     max_sequence_length: int = 512
 
 
