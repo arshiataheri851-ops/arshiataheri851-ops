@@ -81,6 +81,7 @@ A transport-agnostic event delivery core with idempotent ingestion, HMAC-SHA256 
 A SQLite-backed feature store with typed feature schemas, versioned entity values, batch lookup, and TTL-based freshness metadata.
 
 ### 9. [Intelligent Recommendation Platform](projects/intelligent-recommendation-platform/README.md)
+[![Intelligent Recommendation Platform CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/intelligent-recommendation-platform.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/intelligent-recommendation-platform.yml)
 A FastAPI recommendation service with SQLite interaction history, weighted view/click/purchase feedback, cold-start popularity fallback, seen-item suppression, and human-readable ranking explanations. The ranker is a transparent baseline, not a trained model.
 
 ## Profile branding
