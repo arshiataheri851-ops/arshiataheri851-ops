@@ -24,7 +24,11 @@ Positive / Negative scores
 
 ## Quick start
 
-Python 3.11+ is recommended.
+Python 3.11+ is recommended. After cloning this portfolio repository, enter the project folder first:
+
+```bash
+cd projects/persian-sentiment-api
+```
 
 ```bash
 python -m venv .venv
@@ -108,6 +112,7 @@ ruff check .
 ## Docker
 
 ```bash
+cd projects/persian-sentiment-api
 docker build -t persian-sentiment-api .
 docker run --rm -p 8000:8000 persian-sentiment-api
 ```
