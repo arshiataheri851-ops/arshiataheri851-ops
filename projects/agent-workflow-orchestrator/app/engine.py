@@ -41,7 +41,8 @@ class WorkflowEngine:
                 if task.status not in {TaskStatus.PENDING, TaskStatus.BLOCKED}:
                     continue
                 dependencies = [workflow.tasks[item].status for item in task.spec.depends_on]
-                if any(status in {TaskStatus.FAILED, TaskStatus.BLOCKED} for status in dependencies):
+                failed = {TaskStatus.FAILED, TaskStatus.BLOCKED}
+                if any(status in failed for status in dependencies):
                     task.status = TaskStatus.BLOCKED
                     task.updated_at = datetime.now(timezone.utc)
                     changed = True
