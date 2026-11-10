@@ -40,8 +40,8 @@ def canonical_json(payload: dict) -> str:
 
 
 def create_signature(secret: str, body: str, timestamp: int) -> str:
-    signed_payload = f"{timestamp}.{body}".encode("utf-8")
-    digest = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
+    signed_payload = f"{timestamp}.{body}".encode()
+    digest = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
     return f"sha256={digest}"
 
 
@@ -141,9 +141,7 @@ class WebhookDispatcher:
                 raise RuntimeError(f"Receiver returned HTTP {delivery.last_status_code}")
         except Exception as exc:
             delivery.last_error = f"{type(exc).__name__}: {exc}"
-            delivery.status = (
-                "retry" if delivery.attempts < max_attempts else "dead_letter"
-            )
+            delivery.status = "retry" if delivery.attempts < max_attempts else "dead_letter"
         return delivery
 
     def get_delivery(self, delivery_id: str) -> Delivery | None:
