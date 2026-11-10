@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import math
 from collections import deque
 from pathlib import Path
 
@@ -27,6 +28,9 @@ def validate_row(row: dict[str, str], line_number: int) -> dict[str, float | str
     except (TypeError, ValueError) as error:
         raise ValueError(f"Invalid numeric value on CSV row {line_number}") from error
 
+    numeric_values = (open_price, high, low, close, volume)
+    if not all(math.isfinite(value) for value in numeric_values):
+        raise ValueError(f"All numeric values must be finite on row {line_number}")
     if min(open_price, high, low, close) <= 0 or volume < 0:
         raise ValueError(f"Prices must be positive and volume non-negative on row {line_number}")
     if high < max(open_price, close) or low > min(open_price, close) or high < low:
@@ -47,8 +51,8 @@ def build_report(
 ) -> list[dict[str, str | float]]:
     if window < 2:
         raise ValueError("Moving-average window must be at least 2.")
-    if alert_threshold_pct <= 0:
-        raise ValueError("Alert threshold must be positive.")
+    if not math.isfinite(alert_threshold_pct) or alert_threshold_pct <= 0:
+        raise ValueError("Alert threshold must be finite and positive.")
 
     validated = [validate_row(row, index + 2) for index, row in enumerate(rows)]
     closes: deque[float] = deque(maxlen=window)
