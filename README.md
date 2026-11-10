@@ -13,9 +13,19 @@
 
 ## Profile
 
-I work across **applied machine learning, generative AI, backend engineering, and data systems**. My focus is on building useful, maintainable software around models: from data preparation and evaluation to API integration, deployment, and monitoring.
+I build software at the intersection of **applied machine learning, generative AI, Python backend engineering, and data systems**. My portfolio focuses on practical implementations with readable code, reproducible setup instructions, tests, and clearly stated limitations.
 
-I am especially interested in production-oriented AI systems, Persian-language NLP, retrieval-based applications, and reliable model-serving infrastructure.
+My main interests include Persian-language NLP, retrieval systems, model-serving APIs, workflow automation, and reliable backend infrastructure.
+
+## Working together
+
+I am open to three types of opportunities:
+
+- **Engineering roles:** AI/ML engineering, applied NLP, LLM applications, and Python backend positions.
+- **Client projects:** clearly scoped AI, data, and backend development work, with requirements and delivery milestones agreed in writing.
+- **Agency partnerships:** white-label and subcontracting discussions with software agencies and product teams, subject to project fit, scope, and delivery capacity.
+
+For professional enquiries, please reach out through [LinkedIn](https://www.linkedin.com/in/arshia-taher-5b85b33b2/).
 
 ## Engineering focus
 
