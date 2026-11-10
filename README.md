@@ -80,6 +80,9 @@ A transport-agnostic event delivery core with idempotent ingestion, HMAC-SHA256 
 ### 8. [ML Feature Store](projects/ml-feature-store/README.md)
 A SQLite-backed feature store with typed feature schemas, versioned entity values, batch lookup, and TTL-based freshness metadata.
 
+### 9. [Intelligent Recommendation Platform](projects/intelligent-recommendation-platform/README.md)
+A FastAPI recommendation service with SQLite interaction history, weighted view/click/purchase feedback, cold-start popularity fallback, seen-item suppression, and human-readable ranking explanations. The ranker is a transparent baseline, not a trained model.
+
 ## Profile branding
 
 - [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
