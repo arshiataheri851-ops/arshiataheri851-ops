@@ -1,0 +1,15 @@
+[project]
+name = "event-stream-processing-platform"
+version = "0.1.0"
+description = "A reliable, replayable event ingestion and aggregation pipeline"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
