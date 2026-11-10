@@ -1,5 +1,6 @@
 # ML Feature Store
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
 A compact online feature store for machine-learning services. It manages feature-group schemas, validates entity feature writes, versions updates, serves single or batch lookups, and reports feature freshness using configurable TTLs.
 
 ## Features
