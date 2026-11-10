@@ -1,0 +1,41 @@
+name: Portfolio project checks
+
+on:
+  push:
+    paths:
+      - "projects/ml-model-serving-platform/**"
+      - "projects/grounded-document-retrieval/**"
+      - "projects/market-intelligence-risk-engine/**"
+      - ".github/workflows/portfolio-projects.yml"
+  pull_request:
+    paths:
+      - "projects/ml-model-serving-platform/**"
+      - "projects/grounded-document-retrieval/**"
+      - "projects/market-intelligence-risk-engine/**"
+      - ".github/workflows/portfolio-projects.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - ml-model-serving-platform
+          - grounded-document-retrieval
+          - market-intelligence-risk-engine
+    defaults:
+      run:
+        working-directory: projects/${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: projects/${{ matrix.project }}/requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest -q
