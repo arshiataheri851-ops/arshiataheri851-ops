@@ -7,7 +7,6 @@ from typing import Any
 
 from app.store import EVENT_WEIGHTS, EventStore
 
-
 DEFAULT_CATALOG: list[dict[str, Any]] = [
     {
         "item_id": "course-python",
