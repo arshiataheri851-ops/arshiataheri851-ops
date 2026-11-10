@@ -52,6 +52,8 @@ I am especially interested in production-oriented AI systems, Persian-language N
 
 ## Featured projects
 
+[![Advanced engineering project checks](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
+
 ### 1. [Persian Sentiment API](projects/persian-sentiment-api/README.md)
 [![Persian Sentiment API CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
 
