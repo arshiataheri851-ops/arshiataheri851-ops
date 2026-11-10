@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "persian-sentiment-api"
+version = "0.1.0"
+description = "A FastAPI service for Persian sentiment inference using a pinned Hugging Face model."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Arshia Taheri" }]
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "pydantic-settings>=2.5,<3.0",
+]
+
+[project.optional-dependencies]
+inference = [
+  "torch>=2.2",
+  "transformers>=4.44,<5.0",
+]
+dev = [
+  "httpx>=0.27,<1.0",
+  "pytest>=8.0,<9.0",
+  "ruff>=0.6,<1.0",
+]
+evaluation = [
+  "huggingface-hub>=0.24,<1.0",
+  "pandas>=2.2,<3.0",
+  "scikit-learn>=1.5,<2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
