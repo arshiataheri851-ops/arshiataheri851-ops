@@ -88,7 +88,7 @@ class EventPipeline:
         return event_id, event_type, occurred_at, numeric_value
 
     def ingest(self, payload: Any) -> IngestResult:
-        received_at = datetime.now(timezone.utc).isoformat()
+        received_at = datetime.now(UTC).isoformat()
         try:
             event_id, event_type, occurred_at, value = self._validate(payload)
             serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -130,7 +130,7 @@ class EventPipeline:
                 timestamp = datetime.fromisoformat(row["occurred_at"])
                 window_seconds = window_minutes * 60
                 bucket_epoch = int(timestamp.timestamp()) // window_seconds * window_seconds
-                bucket = datetime.fromtimestamp(bucket_epoch, tz=timezone.utc)
+                bucket = datetime.fromtimestamp(bucket_epoch, tz=UTC)
                 key = (bucket.isoformat(), row["event_type"])
                 buckets.setdefault(key, []).append(float(row["value"]))
             db.executemany(
