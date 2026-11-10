@@ -56,6 +56,11 @@ I am especially interested in production-oriented AI systems, Persian-language N
 - [Social preview artwork (SVG)](assets/social-preview.svg)
 - [Profile finishing steps](docs/PROFILE_FINISHING_STEPS.md)
 
+## Featured implementation
+
+### [Persian Sentiment API](projects/persian-sentiment-api/README.md)
+A FastAPI service for Persian review sentiment with a pinned pretrained model, conservative text normalization, batch inference, Docker, CI, and an optional reproducible evaluation script. The code and test suite are public; benchmark results are intentionally not claimed until measured.
+
 ## Project directions
 
 The following are the engineering themes I use to guide portfolio work. Each implementation will be linked here once its code, setup instructions, and evaluation notes are published.
