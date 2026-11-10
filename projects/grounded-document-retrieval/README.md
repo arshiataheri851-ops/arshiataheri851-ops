@@ -26,6 +26,11 @@ Open http://127.0.0.1:8000/docs.
 
     curl -X POST http://127.0.0.1:8000/search -H "Content-Type: application/json" -d '{"query":"How are API requests validated?","top_k":3}'
 
+## Tests
+
+    python -m pip install -r requirements-dev.txt
+    python -m pytest -q
+
 ## Design notes
 
 The index is built from files in data/docs when the application starts. TF-IDF is a lexical baseline: it is lightweight and explainable, but it may miss paraphrases and semantic similarity.
