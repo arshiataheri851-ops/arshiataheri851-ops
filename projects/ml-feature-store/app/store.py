@@ -9,7 +9,6 @@ from collections.abc import Callable
 from time import time
 from typing import Any
 
-
 SUPPORTED_TYPES = {"integer", "number", "string", "boolean", "object"}
 
 
