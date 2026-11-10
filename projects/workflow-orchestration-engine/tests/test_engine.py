@@ -1,6 +1,6 @@
 import pytest
 
-from app.engine import WorkflowStep, execute_workflow, validate_workflow
+from app.engine import WorkflowStep, builtin_actions, execute_workflow, validate_workflow
 
 
 def test_dependency_order_and_outputs():
@@ -44,16 +44,25 @@ def test_retry_then_success_and_skip_after_failure():
 
     steps = [
         WorkflowStep("unstable", "flaky"),
-        WorkflowStep("after", "copy_dependency", depends_on=("unstable",), params={"dependency": "unstable"}),
+        WorkflowStep(
+            "after",
+            "copy_dependency",
+            depends_on=("unstable",),
+            params={"dependency": "unstable"},
+        ),
     ]
-    result = execute_workflow(steps, actions={**__import__("app.engine", fromlist=["builtin_actions"]).builtin_actions(), "flaky": flaky})
+    actions = {**builtin_actions(), "flaky": flaky}
+    result = execute_workflow(steps, actions=actions)
     assert result.status == "succeeded"
     assert result.steps[0].attempts == 2
     assert result.steps[1].output == "done"
 
-    failed = execute_workflow(
-        [WorkflowStep("broken", "sum", params={"values": []}), WorkflowStep("blocked", "sum", depends_on=("broken",), params={"values": [1]})],
-        max_attempts=1,
-    )
+    failed_steps = [
+        WorkflowStep("broken", "sum", params={"values": []}),
+        WorkflowStep(
+            "blocked", "sum", depends_on=("broken",), params={"values": [1]}
+        ),
+    ]
+    failed = execute_workflow(failed_steps, max_attempts=1)
     assert failed.status == "failed"
     assert failed.steps[1].status == "skipped"
