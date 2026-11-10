@@ -49,6 +49,13 @@ I am especially interested in production-oriented AI systems, Persian-language N
   <img alt="Apache Kafka" src="https://img.shields.io/badge/Kafka-231F20?style=flat-square&logo=apachekafka&logoColor=white"/>
 </p>
 
+
+## Profile branding
+
+- [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
+- [Social preview artwork (SVG)](assets/social-preview.svg)
+- [Profile finishing steps](docs/PROFILE_FINISHING_STEPS.md)
+
 ## Project directions
 
 The following are the engineering themes I use to guide portfolio work. Each implementation will be linked here once its code, setup instructions, and evaluation notes are published.
