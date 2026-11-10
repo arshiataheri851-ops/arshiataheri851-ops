@@ -1,0 +1,9 @@
+API request validation
+
+An API should validate incoming data at its boundary. Validation checks types, required fields, string lengths, numeric ranges, and other business constraints before application logic runs.
+
+A response schema makes the output contract explicit. Clients can then rely on stable field names and predictable error responses.
+
+Testing API boundaries
+
+Tests should cover valid requests, malformed payloads, missing fields, and values outside allowed ranges. A useful test suite verifies both successful responses and expected failures.
