@@ -6,6 +6,7 @@ on:
       - "projects/workflow-orchestration-engine/**"
       - "projects/webhook-reliability-platform/**"
       - "projects/ml-feature-store/**"
+      - "projects/llm-gateway-control-plane/**"
       - ".github/workflows/advanced-engineering-projects.yml"
   pull_request:
     paths:
@@ -25,6 +26,7 @@ jobs:
           - workflow-orchestration-engine
           - webhook-reliability-platform
           - ml-feature-store
+          - llm-gateway-control-plane
         python-version: ["3.11", "3.13"]
     defaults:
       run:
