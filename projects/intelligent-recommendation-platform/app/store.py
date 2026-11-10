@@ -7,7 +7,6 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-
 EVENT_WEIGHTS = {"view": 1.0, "click": 3.0, "purchase": 8.0}
 
 
