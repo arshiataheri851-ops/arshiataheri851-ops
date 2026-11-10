@@ -21,12 +21,13 @@ class GatewayResult:
 
 
 def rank_providers(providers: list[ChatProvider], priority: str) -> list[ChatProvider]:
-    if priority == "low_cost":
-        key = lambda provider: (provider.cost_per_1k_tokens, provider.latency_ms)
-    elif priority == "low_latency":
-        key = lambda provider: (provider.latency_ms, provider.cost_per_1k_tokens)
-    else:
-        key = lambda provider: provider.latency_ms / 1000 + provider.cost_per_1k_tokens * 10
+    def key(provider: ChatProvider) -> tuple[float, int] | tuple[int, float] | float:
+        if priority == "low_cost":
+            return (provider.cost_per_1k_tokens, provider.latency_ms)
+        if priority == "low_latency":
+            return (provider.latency_ms, provider.cost_per_1k_tokens)
+        return provider.latency_ms / 1000 + provider.cost_per_1k_tokens * 10
+
     return sorted(providers, key=key)
 
 
