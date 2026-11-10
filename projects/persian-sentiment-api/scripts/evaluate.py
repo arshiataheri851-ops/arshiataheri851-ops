@@ -8,8 +8,8 @@ from huggingface_hub import hf_hub_download
 from sklearn.metrics import classification_report, confusion_matrix
 
 from app.config import Settings
-from app.predictor import HuggingFaceSentimentPredictor
 from app.normalization import normalize_persian_text
+from app.predictor import HuggingFaceSentimentPredictor
 
 DATASET_REPO = "ParsiAI/snappfood-sentiment-analysis"
 DATASET_REVISION = "f7127a990026b685fcf3ff2086b74138ec1e9fa6"
