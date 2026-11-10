@@ -68,6 +68,15 @@ An educational OHLCV processing pipeline with input validation, moving averages,
 ### 5. [Production RAG Service](projects/production-rag-service/README.md)
 A citation-first retrieval service using SQLite, BM25 ranking, extractive evidence selection, and retrieval evaluation. It explicitly does not claim LLM-generated answers.
 
+### 6. [Workflow Orchestration Engine](projects/workflow-orchestration-engine/README.md)
+A dependency-aware DAG runner with cycle detection, topological execution, retries, per-step outcomes, and a FastAPI interface. It is a synchronous reference implementation with explicitly documented durability limits.
+
+### 7. [Webhook Reliability Platform](projects/webhook-reliability-platform/README.md)
+A transport-agnostic event delivery core with idempotent ingestion, HMAC-SHA256 signatures, bounded retries, and dead-letter handling. The sender is injected so automated tests do not make real network calls.
+
+### 8. [ML Feature Store](projects/ml-feature-store/README.md)
+A SQLite-backed feature store with typed feature schemas, versioned entity values, batch lookup, and TTL-based freshness metadata.
+
 ## Profile branding
 
 - [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
