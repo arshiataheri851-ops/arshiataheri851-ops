@@ -18,15 +18,11 @@ class BM25Retriever:
         self.b = b
 
     def search(
-        self,
-        query: str,
-        documents: list[dict[str, Any]],
-        top_k: int = 5,
+        self, query: str, documents: list[dict[str, Any]], top_k: int = 5
     ) -> list[dict[str, Any]]:
         query_terms = tokenize(query)
-        if not query_terms or not documents or top_k <= 0:
+        if not query_terms or not documents:
             return []
-
         tokenized = [tokenize(doc["text"]) for doc in documents]
         lengths = [len(tokens) for tokens in tokenized]
         avg_len = sum(lengths) / len(lengths) if lengths else 0.0
@@ -34,10 +30,9 @@ class BM25Retriever:
         term_freqs = [Counter(tokens) for tokens in tokenized]
         for terms in term_freqs:
             doc_freq.update(terms.keys())
-
         n_docs = len(documents)
         scored: list[dict[str, Any]] = []
-        for doc, tf_map, length in zip(documents, term_freqs, lengths, strict=True):
+        for doc, tf_map, length in zip(documents, term_freqs, lengths):
             score = 0.0
             for term in query_terms:
                 tf = tf_map.get(term, 0)
@@ -49,7 +44,4 @@ class BM25Retriever:
                 score += idf * (tf * (self.k1 + 1)) / norm
             if score > 0:
                 scored.append({**doc, "score": score})
-        return sorted(
-            scored,
-            key=lambda item: (-item["score"], item["chunk_id"]),
-        )[:top_k]
+        return sorted(scored, key=lambda item: (-item["score"], item["chunk_id"]))[:top_k]
