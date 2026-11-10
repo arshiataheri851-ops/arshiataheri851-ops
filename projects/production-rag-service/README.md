@@ -1,5 +1,6 @@
 # Production RAG Service
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/production-rag-service.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/production-rag-service.yml)
 A citation-first document retrieval API. It ingests text, chunks and stores it in SQLite, ranks passages with BM25, returns an extractive answer with source citations, and evaluates retrieval quality.
 
 > Scope is intentionally explicit: this project implements retrieval and evidence handling. It does not claim to be an LLM-powered generator. Answers are extracted from indexed text; unsupported questions return an explicit no-evidence response.
