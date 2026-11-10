@@ -65,11 +65,18 @@ A source-aware document retrieval baseline using TF-IDF, cosine similarity, loca
 ### 4. [Market Intelligence & Risk Analytics](projects/market-intelligence-risk-engine/README.md)
 An educational OHLCV processing pipeline with input validation, moving averages, daily-change monitoring, and CSV reporting. Includes synthetic sample data and does not provide trading recommendations.
 
+### 5. [Production RAG Service](projects/production-rag-service/README.md)
+A citation-first retrieval service using SQLite, BM25 ranking, extractive evidence selection, and retrieval evaluation. It explicitly does not claim LLM-generated answers.
+
 ## Profile branding
 
 - [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
 - [Social preview artwork (SVG)](assets/social-preview.svg)
 - [Profile finishing steps](docs/PROFILE_FINISHING_STEPS.md)
+
+## Local development
+
+- [Windows setup guide for running Persian Sentiment API](docs/LOCAL_SETUP_WINDOWS.md)
 
 ## Project roadmap
 
