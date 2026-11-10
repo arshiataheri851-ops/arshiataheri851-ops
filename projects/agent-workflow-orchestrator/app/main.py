@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
 from .engine import (
     InvalidTransitionError, WorkflowEngine, WorkflowNotFoundError,
 )
@@ -76,7 +77,9 @@ def complete_task(workflow_id: str, task_id: str, payload: TaskAction):
 @app.post("/v1/workflows/{workflow_id}/tasks/{task_id}/fail")
 def fail_task(workflow_id: str, task_id: str, payload: TaskAction):
     try:
-        return engine.fail(workflow_id, task_id, payload.actor, payload.error or "unspecified error")
+        return engine.fail(
+            workflow_id, task_id, payload.actor, payload.error or "unspecified error"
+        )
     except WorkflowNotFoundError as exc:
         raise HTTPException(status_code=404, detail="workflow or task not found") from exc
     except InvalidTransitionError as exc:
