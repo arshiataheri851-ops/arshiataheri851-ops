@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
-import time
 from collections.abc import Callable
+from time import time
 from typing import Any
 
 
@@ -19,7 +19,7 @@ class FeatureStore:
         db_path: str = ":memory:",
         clock: Callable[[], float] | None = None,
     ) -> None:
-        self._clock = clock or time.time
+        self._clock = clock or time
         self._connection = sqlite3.connect(db_path, check_same_thread=False)
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
