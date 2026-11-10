@@ -1,9 +1,8 @@
 from datetime import datetime, timezone
 from typing import Any
+
 from .graph import validate_graph
-from .models import (
-    AuditEvent, TaskRecord, TaskSpec, TaskStatus, WorkflowCreate, WorkflowRecord,
-)
+from .models import AuditEvent, TaskRecord, TaskStatus, WorkflowCreate, WorkflowRecord
 from .store import WorkflowStore
 
 
@@ -151,8 +150,11 @@ class WorkflowEngine:
         workflow.updated_at = task.updated_at
         self._refresh(workflow)
         self.store.save(workflow)
-        self._event(workflow_id, task_id, "task_retry_scheduled" if task.status == TaskStatus.READY
-                    else "task_failed", actor, {"error": error, "attempt": task.attempts})
+        event_type = (
+            "task_retry_scheduled" if task.status == TaskStatus.READY else "task_failed"
+        )
+        self._event(workflow_id, task_id, event_type, actor,
+                    {"error": error, "attempt": task.attempts})
         return workflow
 
     def audit(self, workflow_id: str) -> list[AuditEvent]:
