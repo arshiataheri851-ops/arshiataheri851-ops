@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Callable
 from urllib.parse import urlparse
 
 Sender = Callable[[str, str, dict[str, str]], int]
