@@ -159,7 +159,6 @@ def execute_workflow(
         outcomes[name] = outcome
 
     ordered_outcomes = [outcomes[name] for name in order]
-    workflow_status = (
-        "failed" if any(item.status == "failed" for item in ordered_outcomes) else "succeeded"
-    )
+    has_failures = any(item.status == "failed" for item in ordered_outcomes)
+    workflow_status = "failed" if has_failures else "succeeded"
     return WorkflowOutcome(status=workflow_status, steps=ordered_outcomes)
