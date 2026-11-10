@@ -105,9 +105,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Analyze historical OHLCV data.")
     parser.add_argument("input", type=Path, help="Input OHLCV CSV file")
     parser.add_argument("--output", type=Path, default=Path("reports/market_report.csv"))
+    parser.add_argument("--window", type=int, default=3, help="Moving-average window")
+    parser.add_argument(
+        "--alert-threshold-pct",
+        type=float,
+        default=5.0,
+        help="Absolute daily percentage change that triggers an alert",
+    )
     args = parser.parse_args()
 
-    report = build_report(read_rows(args.input))
+    report = build_report(
+        read_rows(args.input),
+        window=args.window,
+        alert_threshold_pct=args.alert_threshold_pct,
+    )
     write_report(report, args.output)
     print(f"Processed {len(report)} rows. Report saved to {args.output}")
 
