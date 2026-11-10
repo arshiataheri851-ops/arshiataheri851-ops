@@ -1,5 +1,6 @@
 # Agent Workflow Orchestrator
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/agent-workflow-orchestrator.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/agent-workflow-orchestrator.yml)
 An approval-aware, auditable workflow engine for coordinating multi-step work across specialist agents or external workers.
 
 > This repository implements the orchestration control plane, not autonomous LLM agents. Workers are external adapters that claim tasks and submit results. The included engine is deterministic and testable without paid model APIs.
