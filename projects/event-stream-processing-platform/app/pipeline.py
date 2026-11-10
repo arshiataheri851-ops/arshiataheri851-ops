@@ -4,7 +4,7 @@ import json
 import math
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -66,7 +66,7 @@ class EventPipeline:
             raise ValueError("occurred_at must be a valid ISO-8601 timestamp") from exc
         if parsed.tzinfo is None:
             raise ValueError("occurred_at must include a timezone")
-        return parsed.astimezone(timezone.utc)
+        return parsed.astimezone(UTC)
 
     @staticmethod
     def _validate(payload: Any) -> tuple[str, str, datetime, float]:
