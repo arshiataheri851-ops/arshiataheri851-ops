@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,7 +10,7 @@ DEFAULT_MODEL_REVISION = "8c5d0be5517c4bd5e26f785b1ad60b394a80de07"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="SENTIMENT_",
-        env_file=".env",
+        env_file=Path(__file__).resolve().parents[1] / ".env",
         extra="ignore",
     )
 
