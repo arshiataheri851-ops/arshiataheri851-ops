@@ -1,4 +1,5 @@
 import pytest
+
 from app.graph import WorkflowValidationError, validate_graph
 from app.models import TaskSpec
 
