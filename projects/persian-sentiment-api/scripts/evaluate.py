@@ -9,6 +9,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 from app.config import Settings
 from app.predictor import HuggingFaceSentimentPredictor
+from app.normalization import normalize_persian_text
 
 DATASET_REPO = "ParsiAI/snappfood-sentiment-analysis"
 DATASET_REVISION = "f7127a990026b685fcf3ff2086b74138ec1e9fa6"
@@ -28,7 +29,10 @@ def main() -> None:
     if not required_columns.issubset(frame.columns):
         raise ValueError(f"Expected dataset columns: {sorted(required_columns)}")
 
-    texts = frame["comment"].fillna("").astype(str).tolist()
+    texts = [
+        normalize_persian_text(text)
+        for text in frame["comment"].fillna("").astype(str).tolist()
+    ]
     raw_labels = frame["label"].astype(str).str.upper().tolist()
     unknown_labels = sorted(set(raw_labels) - set(LABEL_MAP))
     if unknown_labels:
