@@ -74,7 +74,7 @@ class GatewayService:
                         model=response.model,
                         output=response.output,
                         estimated_cost_usd=round(estimate, 8),
-                        used_fallback=index >= len(primary),
+                        used_fallback=provider.is_fallback and bool(primary),
                     )
                 except Exception as exc:
                     last_error = type(exc).__name__
