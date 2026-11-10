@@ -1,0 +1,44 @@
+# Python bytecode and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments (including the repository-root environment)
+.venv/
+**/.venv/
+venv/
+**/venv/
+
+# Local environment variables and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Generated model and training artifacts
+artifacts/
+**/artifacts/
+*.joblib
+*.pkl
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# Generated databases and reports
+*.sqlite3
+*.db
+reports/
+**/reports/
+
+# Packaging and OS files
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db
