@@ -37,7 +37,18 @@ class ModelService:
         values = np.asarray([features], dtype=float)
         probabilities = model.predict_proba(values)[0]
         class_index = int(np.argmax(probabilities))
-        label = str(model.classes_[class_index])
+        class_value = model.classes_[class_index]
+
+        class_names = self._artifact.get("class_names")
+        if class_names is not None and isinstance(class_value, (int, np.integer)):
+            numeric_class = int(class_value)
+            if 0 <= numeric_class < len(class_names):
+                label = str(class_names[numeric_class])
+            else:
+                label = str(class_value)
+        else:
+            label = str(class_value)
+
         return {
             "label": label,
             "confidence": float(probabilities[class_index]),
