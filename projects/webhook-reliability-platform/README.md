@@ -1,5 +1,6 @@
 # Webhook Reliability Platform
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
 A transport-agnostic webhook delivery core with event idempotency, subscription routing, HMAC signatures, bounded retries, and a dead-letter state. The FastAPI layer exposes subscription and event-ingestion endpoints; delivery transport is injected so tests never make real network requests.
 
 ## Capabilities
