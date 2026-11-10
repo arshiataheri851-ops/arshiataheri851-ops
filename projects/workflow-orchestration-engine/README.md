@@ -1,5 +1,6 @@
 # Workflow Orchestration Engine
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
 A small, inspectable DAG workflow runner built with Python and FastAPI. It validates dependencies, detects cycles, executes steps in topological order, records step outcomes, retries failed actions, and skips downstream steps when prerequisites fail.
 
 ## Features
