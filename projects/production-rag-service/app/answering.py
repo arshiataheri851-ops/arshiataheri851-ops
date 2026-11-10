@@ -8,7 +8,6 @@ def build_grounded_answer(question: str, results: list[dict[str, Any]]) -> str:
     """Return the best evidence sentence; never invent an answer without evidence."""
     if not results:
         return "I could not find supporting evidence in the indexed documents."
-
     query_terms = set(tokenize(question))
     candidates: list[tuple[float, str]] = []
     for result in results:
@@ -19,9 +18,7 @@ def build_grounded_answer(question: str, results: list[dict[str, Any]]) -> str:
                 continue
             overlap = len(query_terms & words) / max(len(query_terms), 1)
             if overlap:
-                score = overlap + min(result["score"], 5.0) * 0.01
-                candidates.append((score, sentence.strip()))
-
+                candidates.append((overlap + min(result["score"], 5.0) * 0.01, sentence.strip()))
     if not candidates:
         return (
             "Relevant documents were retrieved, but no concise answer sentence "
