@@ -1,5 +1,7 @@
 # Persian Sentiment API
 
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
+
 A production-oriented REST API for Persian (Farsi) sentiment analysis, built with FastAPI and a pretrained Persian BERT model.
 
 **Project status:** first working implementation. This repository includes lazy model loading, Persian text normalization, single and batch inference, health checks, Docker support, automated tests, CI, and an optional evaluation script. No benchmark score is claimed until the evaluation is run and its environment is recorded.
