@@ -38,7 +38,7 @@ class WorkflowEngine:
         while changed:
             changed = False
             for task_id, task in workflow.tasks.items():
-                if task.status not in {TaskStatus.PENDING, TaskStatus.BLOCKED}:
+                if task.status != TaskStatus.PENDING:
                     continue
                 dependencies = [workflow.tasks[item].status for item in task.spec.depends_on]
                 failed = {TaskStatus.FAILED, TaskStatus.BLOCKED}
