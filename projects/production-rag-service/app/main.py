@@ -45,21 +45,13 @@ def health():
 def ingest_document(payload: DocumentIn, request: Request):
     cfg = request.app.state.settings if hasattr(request.app.state, "settings") else settings
     if len(payload.text) > cfg.max_document_chars:
-        raise HTTPException(
-            status_code=413,
-            detail="document exceeds configured character limit",
-        )
-
+        raise HTTPException(status_code=413, detail="document exceeds configured character limit")
     chunks = split_text(payload.text, cfg.chunk_size, cfg.chunk_overlap)
     if not chunks:
         raise HTTPException(status_code=422, detail="document contains no indexable text")
-
     replaced = store.upsert_document(
-        payload.document_id,
-        payload.title,
-        payload.source,
-        payload.metadata,
-        [chunk.text for chunk in chunks],
+        payload.document_id, payload.title, payload.source,
+        payload.metadata, [chunk.text for chunk in chunks],
     )
     return IngestResponse(
         document_id=payload.document_id,
@@ -72,21 +64,14 @@ def ingest_document(payload: DocumentIn, request: Request):
 def query_documents(payload: QueryIn, request: Request):
     cfg = request.app.state.settings if hasattr(request.app.state, "settings") else settings
     if len(payload.question) > cfg.max_query_chars:
-        raise HTTPException(
-            status_code=413,
-            detail="question exceeds configured character limit",
-        )
-
+        raise HTTPException(status_code=413, detail="question exceeds configured character limit")
     top_k = min(payload.top_k or cfg.default_top_k, cfg.max_top_k)
     results = retriever.search(payload.question, store.list_chunks(), top_k)
     results = [item for item in results if item["score"] >= cfg.min_relevance_score]
     citations = [
         Citation(
-            chunk_id=item["chunk_id"],
-            document_id=item["document_id"],
-            title=item["title"],
-            source=item["source"],
-            text=item["text"],
+            chunk_id=item["chunk_id"], document_id=item["document_id"],
+            title=item["title"], source=item["source"], text=item["text"],
             score=round(item["score"], 6),
         )
         for item in results
@@ -106,8 +91,6 @@ def evaluate(payload: EvaluationRequest):
         return retriever.search(question, chunks, k)
 
     metrics = evaluate_retrieval(
-        [case.model_dump() for case in payload.cases],
-        retrieve,
-        payload.top_k,
+        [case.model_dump() for case in payload.cases], retrieve, payload.top_k
     )
     return EvaluationResponse(**metrics)
