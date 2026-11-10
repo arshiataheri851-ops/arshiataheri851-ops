@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#050f1f"/><stop offset="1" stop-color="#0f2641"/></linearGradient>
+ <linearGradient id="accent"><stop stop-color="#43d3c5"/><stop offset="1" stop-color="#6d8cff"/></linearGradient>
+ <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#618bb4" stroke-opacity=".22"/></pattern>
+</defs>
+<rect width="1280" height="640" fill="url(#bg)"/><rect width="1280" height="640" fill="url(#grid)"/>
+<g fill="none" stroke="#30a9cd" stroke-width="4" stroke-opacity=".8">
+ <path d="m850 150 160-50 150 65-230 145 170 50 120 140M930 310 790 485l240 50 130-175-150-260"/>
+ <circle cx="1030" cy="270" r="160" stroke="#4ed6d0" stroke-opacity=".28" stroke-width="3"/>
+</g>
+<g fill="#5be2d2"><circle cx="850" cy="150" r="9"/><circle cx="1010" cy="100" r="9"/><circle cx="1160" cy="165" r="9"/><circle cx="930" cy="310" r="9"/><circle cx="1100" cy="360" r="9"/><circle cx="1220" cy="500" r="9"/><circle cx="790" cy="485" r="9"/><circle cx="1030" cy="535" r="9"/></g>
+<rect x="94" y="122" width="14" height="398" rx="7" fill="#43d3c5"/>
+<g font-family="Inter,Segoe UI,Arial,sans-serif">
+ <text x="150" y="176" font-size="26" letter-spacing="3" fill="#97bedc">ENGINEERING PORTFOLIO</text>
+ <text x="145" y="300" font-size="72" font-weight="700" fill="#f5faff">ARSHIA TAHERI</text>
+ <text x="150" y="370" font-size="36" fill="#57ded2">AI / ML ENGINEER</text>
+ <path d="M150 400H650" stroke="url(#accent)" stroke-width="3"/>
+ <text x="150" y="468" font-size="25" fill="#cedef0">LLM &amp; RAG · PYTHON BACKEND · ML SYSTEMS</text>
+ <text x="150" y="535" font-size="26" fill="#94b4d2">Build practical, reliable AI systems.</text>
+</g>
+</svg>
