@@ -10,7 +10,7 @@ def build_grounded_answer(question: str, results: list[dict[str, Any]]) -> str:
     query_terms = set(tokenize(question))
     candidates: list[tuple[float, str]] = []
     for result in results:
-        sentences = re.split(r"(?<=[.!?؟])\\s+|\\n+", result["text"])
+        sentences = re.split(r"(?<=[.!?؟])\s+|\n+", result["text"])
         for sentence in sentences:
             words = set(tokenize(sentence))
             if not words:
