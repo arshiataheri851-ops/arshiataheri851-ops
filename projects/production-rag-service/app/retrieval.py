@@ -32,7 +32,7 @@ class BM25Retriever:
             doc_freq.update(terms.keys())
         n_docs = len(documents)
         scored: list[dict[str, Any]] = []
-        for doc, tf_map, length in zip(documents, term_freqs, lengths):
+        for doc, tf_map, length in zip(documents, term_freqs, lengths, strict=True):
             score = 0.0
             for term in query_terms:
                 tf = tf_map.get(term, 0)
