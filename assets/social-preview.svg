@@ -14,9 +14,9 @@
 <g font-family="Inter,Segoe UI,Arial,sans-serif">
  <text x="150" y="176" font-size="26" letter-spacing="3" fill="#97bedc">ENGINEERING PORTFOLIO</text>
  <text x="145" y="300" font-size="72" font-weight="700" fill="#f5faff">ARSHIA TAHERI</text>
- <text x="150" y="370" font-size="36" fill="#57ded2">AI / ML ENGINEER</text>
- <path d="M150 400H650" stroke="url(#accent)" stroke-width="3"/>
- <text x="150" y="468" font-size="25" fill="#cedef0">LLM &amp; RAG · PYTHON BACKEND · ML SYSTEMS</text>
- <text x="150" y="535" font-size="26" fill="#94b4d2">Build practical, reliable AI systems.</text>
+ <text x="150" y="370" font-size="35" fill="#57ded2">SOFTWARE ENGINEER | AI ENGINEER</text>
+ <path d="M150 400H850" stroke="url(#accent)" stroke-width="3"/>
+ <text x="150" y="468" font-size="25" fill="#cedef0">SOFTWARE DEVELOPMENT · AI APPLICATIONS · BACKEND SYSTEMS</text>
+ <text x="150" y="535" font-size="26" fill="#94b4d2">Building practical software and intelligent systems.</text>
 </g>
 </svg>
