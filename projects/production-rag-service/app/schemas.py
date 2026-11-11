@@ -1,12 +1,23 @@
-from pydantic import BaseModel, Field, field_validator
+"""Validated request and response contracts for AtlasRAG."""
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class DocumentIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     document_id: str = Field(min_length=1, max_length=120, pattern=r"^[a-zA-Z0-9_.:-]+$")
     title: str = Field(min_length=1, max_length=300)
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, max_length=100_000)
     source: str | None = Field(default=None, max_length=500)
-    metadata: dict[str, str] = Field(default_factory=dict)
+    metadata: dict[str, str] = Field(default_factory=dict, max_length=30)
+
+    @field_validator("title", "text")
+    @classmethod
+    def reject_whitespace_only(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must contain non-whitespace characters")
+        return value.strip()
 
 
 class IngestResponse(BaseModel):
@@ -16,7 +27,9 @@ class IngestResponse(BaseModel):
 
 
 class QueryIn(BaseModel):
-    question: str = Field(min_length=2)
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=2, max_length=2_000)
     top_k: int | None = Field(default=None, ge=1, le=20)
 
     @field_validator("question")
@@ -45,11 +58,13 @@ class QueryResponse(BaseModel):
 
 
 class EvaluationCase(BaseModel):
-    question: str
-    expected_document_id: str
+    question: str = Field(min_length=2, max_length=2_000)
+    expected_document_id: str = Field(min_length=1, max_length=120)
 
 
 class EvaluationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     cases: list[EvaluationCase] = Field(min_length=1, max_length=200)
     top_k: int = Field(default=5, ge=1, le=20)
 
