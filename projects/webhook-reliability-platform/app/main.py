@@ -1,6 +1,6 @@
 """RelayForge API: event intake, subscription routing, and delivery lifecycle."""
 
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Query, status
@@ -102,7 +102,7 @@ def create_app(sender: Sender | None = None) -> FastAPI:
 
     @api.get("/deliveries", tags=["deliveries"])
     def list_deliveries(
-        delivery_status: str | None = Query(default=None, alias="status"),
+        delivery_status: Annotated[str | None, Query(alias="status")] = None,
     ) -> list[dict[str, Any]]:
         if delivery_status is not None and delivery_status not in {
             "queued", "retry", "delivered", "dead_letter"
@@ -113,8 +113,8 @@ def create_app(sender: Sender | None = None) -> FastAPI:
     @api.post("/deliveries/{delivery_id}/dispatch", tags=["deliveries"])
     def dispatch_delivery(
         delivery_id: str,
-        timestamp: int = Query(gt=0),
-        max_attempts: int = Query(default=3, ge=1, le=10),
+        timestamp: Annotated[int, Query(gt=0)],
+        max_attempts: Annotated[int, Query(ge=1, le=10)] = 3,
     ) -> dict[str, Any]:
         if api.state.sender is None:
             raise HTTPException(
