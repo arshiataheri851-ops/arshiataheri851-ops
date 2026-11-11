@@ -1,0 +1,36 @@
+name: arshia-engineering-projects
+
+services:
+  farsipulse:
+    build:
+      context: ./projects/persian-sentiment-api
+    ports:
+      - "8001:8000"
+    environment:
+      SENTIMENT_MAX_SEQUENCE_LENGTH: "512"
+      HF_HOME: /home/app/.cache/huggingface
+    volumes:
+      - farsipulse-model-cache:/home/app/.cache/huggingface
+    restart: unless-stopped
+
+  atlasrag:
+    build:
+      context: ./projects/production-rag-service
+    ports:
+      - "8002:8000"
+    environment:
+      RAG_DATABASE_PATH: /srv/app/data/atlasrag.sqlite3
+    volumes:
+      - atlasrag-data:/srv/app/data
+    restart: unless-stopped
+
+  relayforge:
+    build:
+      context: ./projects/webhook-reliability-platform
+    ports:
+      - "8003:8000"
+    restart: unless-stopped
+
+volumes:
+  farsipulse-model-cache:
+  atlasrag-data:
