@@ -65,7 +65,7 @@ For professional enquiries, please reach out through [LinkedIn](https://www.link
 
 [![Advanced engineering project checks](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
 
-### 1. [Persian Sentiment API](projects/persian-sentiment-api/README.md)
+### 1. [FarsiPulse — Persian Sentiment Intelligence API](projects/persian-sentiment-api/README.md)
 [![Persian Sentiment API CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
 
 FastAPI inference service for Persian review sentiment using a pinned pretrained model. Includes conservative normalization, single and batch inference, health checks, Docker support, automated tests, CI, and an optional reproducible evaluation script. Benchmark scores are intentionally not claimed until measured.
@@ -79,13 +79,13 @@ A source-aware document retrieval baseline using TF-IDF, cosine similarity, loca
 ### 4. [Market Intelligence & Risk Analytics](projects/market-intelligence-risk-engine/README.md)
 An educational OHLCV processing pipeline with input validation, moving averages, daily-change monitoring, and CSV reporting. Includes synthetic sample data and does not provide trading recommendations.
 
-### 5. [Production RAG Service](projects/production-rag-service/README.md)
+### 5. [AtlasRAG — Evidence Retrieval Platform](projects/production-rag-service/README.md)
 A citation-first retrieval service using SQLite, BM25 ranking, extractive evidence selection, and retrieval evaluation. It explicitly does not claim LLM-generated answers.
 
 ### 6. [Workflow Orchestration Engine](projects/workflow-orchestration-engine/README.md)
 A dependency-aware DAG runner with cycle detection, topological execution, retries, per-step outcomes, and a FastAPI interface. It is a synchronous reference implementation with explicitly documented durability limits.
 
-### 7. [Webhook Reliability Platform](projects/webhook-reliability-platform/README.md)
+### 7. [RelayForge — Reliable Webhook Delivery Engine](projects/webhook-reliability-platform/README.md)
 A transport-agnostic event delivery core with idempotent ingestion, HMAC-SHA256 signatures, bounded retries, and dead-letter handling. The sender is injected so automated tests do not make real network calls.
 
 ### 8. [ML Feature Store](projects/ml-feature-store/README.md)
