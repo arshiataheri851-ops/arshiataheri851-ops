@@ -1,10 +1,10 @@
-from contextlib import asynccontextmanager
+"""AtlasRAG: citation-first retrieval API with isolated application state."""
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, status
 
 from .answering import build_grounded_answer
 from .chunking import split_text
-from .config import get_settings
+from .config import Settings, get_settings
 from .evaluation import evaluate_retrieval
 from .retrieval import BM25Retriever
 from .schemas import (
@@ -18,79 +18,135 @@ from .schemas import (
 )
 from .store import SQLiteStore
 
-settings = get_settings()
-store = SQLiteStore(settings.database_path)
-retriever = BM25Retriever()
 
+def create_app(
+    settings: Settings | None = None,
+    store: SQLiteStore | None = None,
+    retriever: BM25Retriever | None = None,
+) -> FastAPI:
+    cfg = settings or get_settings()
+    database = store or SQLiteStore(cfg.database_path)
+    ranker = retriever or BM25Retriever()
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    yield
-
-
-app = FastAPI(
-    title="Production RAG Service",
-    version="1.0.0",
-    lifespan=lifespan,
-    description="Citation-first document retrieval with deterministic evaluation.",
-)
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "indexed_documents": store.count_documents()}
-
-
-@app.post("/v1/documents", response_model=IngestResponse, status_code=201)
-def ingest_document(payload: DocumentIn, request: Request):
-    cfg = request.app.state.settings if hasattr(request.app.state, "settings") else settings
-    if len(payload.text) > cfg.max_document_chars:
-        raise HTTPException(status_code=413, detail="document exceeds configured character limit")
-    chunks = split_text(payload.text, cfg.chunk_size, cfg.chunk_overlap)
-    if not chunks:
-        raise HTTPException(status_code=422, detail="document contains no indexable text")
-    replaced = store.upsert_document(
-        payload.document_id, payload.title, payload.source,
-        payload.metadata, [chunk.text for chunk in chunks],
+    api = FastAPI(
+        title="AtlasRAG — Evidence Retrieval API",
+        version="1.1.0",
+        description=(
+            "A citation-first retrieval service. It returns extractive evidence "
+            "from indexed documents and explicitly abstains when evidence is missing."
+        ),
+        docs_url="/docs",
+        redoc_url="/redoc",
     )
-    return IngestResponse(
-        document_id=payload.document_id,
-        chunks_created=len(chunks),
-        replaced_existing=replaced,
+    api.state.settings = cfg
+    api.state.store = database
+    api.state.retriever = ranker
+
+    @api.get("/", tags=["service"])
+    def root() -> dict[str, str]:
+        return {
+            "service": "atlasrag",
+            "version": api.version,
+            "docs": "/docs",
+            "health": "/health",
+        }
+
+    @api.get("/health", tags=["service"])
+    def health(request: Request) -> dict[str, int | str]:
+        return {
+            "status": "ok",
+            "indexed_documents": request.app.state.store.count_documents(),
+            "indexed_chunks": len(request.app.state.store.list_chunks()),
+        }
+
+    @api.post(
+        "/v1/documents",
+        response_model=IngestResponse,
+        status_code=status.HTTP_201_CREATED,
+        tags=["documents"],
     )
+    def ingest_document(payload: DocumentIn, request: Request) -> IngestResponse:
+        current_settings = request.app.state.settings
+        if len(payload.text) > current_settings.max_document_chars:
+            raise HTTPException(status_code=413, detail="Document exceeds the configured size limit.")
 
-
-@app.post("/v1/query", response_model=QueryResponse)
-def query_documents(payload: QueryIn, request: Request):
-    cfg = request.app.state.settings if hasattr(request.app.state, "settings") else settings
-    if len(payload.question) > cfg.max_query_chars:
-        raise HTTPException(status_code=413, detail="question exceeds configured character limit")
-    top_k = min(payload.top_k or cfg.default_top_k, cfg.max_top_k)
-    results = retriever.search(payload.question, store.list_chunks(), top_k)
-    results = [item for item in results if item["score"] >= cfg.min_relevance_score]
-    citations = [
-        Citation(
-            chunk_id=item["chunk_id"], document_id=item["document_id"],
-            title=item["title"], source=item["source"], text=item["text"],
-            score=round(item["score"], 6),
+        chunks = split_text(
+            payload.text,
+            current_settings.chunk_size,
+            current_settings.chunk_overlap,
         )
-        for item in results
-    ]
-    return QueryResponse(
-        answer=build_grounded_answer(payload.question, results),
-        grounded=bool(results),
-        citations=citations,
-    )
+        if not chunks:
+            raise HTTPException(status_code=422, detail="Document contains no indexable text.")
+
+        replaced = request.app.state.store.upsert_document(
+            payload.document_id,
+            payload.title,
+            payload.source,
+            payload.metadata,
+            [chunk.text for chunk in chunks],
+        )
+        return IngestResponse(
+            document_id=payload.document_id,
+            chunks_created=len(chunks),
+            replaced_existing=replaced,
+        )
+
+    @api.get("/v1/documents", tags=["documents"])
+    def list_documents(request: Request) -> list[dict[str, str | int | None]]:
+        return request.app.state.store.list_documents()
+
+    @api.delete("/v1/documents/{document_id}", tags=["documents"])
+    def delete_document(document_id: str, request: Request) -> dict[str, bool | str]:
+        deleted = request.app.state.store.delete_document(document_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        return {"document_id": document_id, "deleted": True}
+
+    @api.post("/v1/query", response_model=QueryResponse, tags=["retrieval"])
+    def query_documents(payload: QueryIn, request: Request) -> QueryResponse:
+        current_settings = request.app.state.settings
+        if len(payload.question) > current_settings.max_query_chars:
+            raise HTTPException(status_code=413, detail="Question exceeds the configured size limit.")
+
+        top_k = min(payload.top_k or current_settings.default_top_k, current_settings.max_top_k)
+        chunks = request.app.state.store.list_chunks()
+        results = request.app.state.retriever.search(payload.question, chunks, top_k)
+        results = [
+            item for item in results
+            if item["score"] >= current_settings.min_relevance_score
+        ]
+        citations = [
+            Citation(
+                chunk_id=item["chunk_id"],
+                document_id=item["document_id"],
+                title=item["title"],
+                source=item["source"],
+                text=item["text"],
+                score=round(item["score"], 6),
+            )
+            for item in results
+        ]
+        return QueryResponse(
+            answer=build_grounded_answer(payload.question, results),
+            grounded=bool(results),
+            citations=citations,
+        )
+
+    @api.post("/v1/evaluate", response_model=EvaluationResponse, tags=["evaluation"])
+    def evaluate(payload: EvaluationRequest, request: Request) -> EvaluationResponse:
+        chunks = request.app.state.store.list_chunks()
+
+        def retrieve(question: str, k: int) -> list[dict]:
+            return request.app.state.retriever.search(question, chunks, k)
+
+        metrics = evaluate_retrieval(
+            [case.model_dump() for case in payload.cases],
+            retrieve,
+            payload.top_k,
+        )
+        return EvaluationResponse(**metrics)
+
+    return api
 
 
-@app.post("/v1/evaluate", response_model=EvaluationResponse)
-def evaluate(payload: EvaluationRequest):
-    chunks = store.list_chunks()
-
-    def retrieve(question: str, k: int):
-        return retriever.search(question, chunks, k)
-
-    metrics = evaluate_retrieval(
-        [case.model_dump() for case in payload.cases], retrieve, payload.top_k
-    )
-    return EvaluationResponse(**metrics)
+app = create_app()
