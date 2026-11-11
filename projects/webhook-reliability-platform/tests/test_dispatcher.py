@@ -19,6 +19,13 @@ def test_idempotent_enqueue_and_event_routing():
     assert len(dispatcher.list_deliveries()) == 1
 
 
+def test_same_event_id_with_different_payload_is_rejected():
+    dispatcher = configured_dispatcher()
+    dispatcher.enqueue_event("evt-conflict", "invoice.paid", {"amount": 50}, 100)
+    with pytest.raises(ValueError, match="different event payload"):
+        dispatcher.enqueue_event("evt-conflict", "invoice.paid", {"amount": 500}, 100)
+
+
 def test_hmac_signature_verification_and_tamper_detection():
     signature = create_signature("secret-value-long-enough", '{"ok":true}', 123)
     assert verify_signature("secret-value-long-enough", '{"ok":true}', 123, signature)
@@ -45,3 +52,8 @@ def test_reject_insecure_subscription_url_and_short_secret():
         dispatcher.register_subscription("bad", "demo", "http://example.com/hook", "s" * 32)
     with pytest.raises(ValueError, match="16 characters"):
         dispatcher.register_subscription("short", "demo", "https://example.com/hook", "tiny")
+
+
+def test_subscription_secrets_are_not_exposed():
+    dispatcher = configured_dispatcher()
+    assert "secret" not in dispatcher.list_subscriptions()[0]
