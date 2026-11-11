@@ -2,7 +2,7 @@
 
 A premium, responsive storefront concept built as a frontend portfolio project. STRIDE demonstrates a complete shopping journey at the UI level: editorial landing page, product discovery, saved items, quick views, persistent cart, and a clearly labelled demo checkout.
 
-> **Live website:** https://arshiataheri851-ops.github.io/arshiataheri851-ops/projects/stride-store/  
+> **Live website:** https://arshiataheri851-ops.github.io/arshiataheri851-ops/  
 > **Important:** This is a static frontend demonstration. It does not process payments, create real orders, connect to inventory, or send emails.
 
 ## Experience
@@ -60,7 +60,7 @@ The repository includes `.github/workflows/stride-store-pages.yml`. It validates
 
 Expected project URL:
 
-`https://arshiataheri851-ops.github.io/arshiataheri851-ops/projects/stride-store/`
+`https://arshiataheri851-ops.github.io/arshiataheri851-ops/`
 
 For the repository's Pages site to publish, set **Settings → Pages → Build and deployment → Source → GitHub Actions** once. GitHub Pages sites are public. After that one-time setting, pushes affecting this project trigger deployment automatically.
 
