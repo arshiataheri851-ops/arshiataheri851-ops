@@ -1,6 +1,6 @@
 # AtlasRAG — Evidence Retrieval Platform
 
-[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/production-rag-service.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/production-rag-service.yml)
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 
 AtlasRAG is a citation-first document retrieval API. It ingests text, chunks and persists it in SQLite, ranks passages with BM25, extracts evidence sentences, and returns citations with every grounded response.
 
