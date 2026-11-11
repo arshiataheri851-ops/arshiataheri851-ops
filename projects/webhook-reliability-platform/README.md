@@ -1,6 +1,6 @@
 # RelayForge — Reliable Webhook Delivery Engine
 
-[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 
 RelayForge is a transport-agnostic webhook delivery core. It accepts events, routes them to subscriptions, signs canonical payloads with HMAC-SHA256, and tracks bounded retry and dead-letter states.
 
