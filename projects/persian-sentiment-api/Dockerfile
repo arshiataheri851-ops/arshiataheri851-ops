@@ -6,7 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /workspace
 
-RUN groupadd --system app && useradd --system --gid app --create-home app
+RUN groupadd --system app \
+    && useradd --system --gid app --create-home app \
+    && mkdir -p /home/app/.cache/huggingface \
+    && chown -R app:app /home/app/.cache
 
 COPY pyproject.toml README.md LICENSE ./
 COPY app ./app
