@@ -3,7 +3,7 @@
 A premium, responsive storefront concept built as a frontend portfolio project. STRIDE demonstrates a complete shopping journey at the UI level: editorial landing page, product discovery, saved items, quick views, persistent cart, and a clearly labelled demo checkout.
 
 > **Live website:** https://arshiataheri851-ops.github.io/arshiataheri851-ops/  
- > **Important:** No real inventory is connected. This is a static frontend demonstration; it does not process payments, create real orders, or send emails.
+> **Important:** No real inventory is connected. This is a static frontend demonstration; it does not process payments, create real orders, or send emails.
 
 ## Experience
 
@@ -72,7 +72,7 @@ The deployment workflow checks:
 - the expected catalog and interactive features are present;
 - JavaScript passes Node syntax validation.
 
-## Production roadmap
+## Product roadmap
 
 This repository intentionally remains a static frontend demo. A real store would require a backend API, database-backed product and inventory data, secure authentication, server-side order validation, a payment provider, verified webhooks, shipping/tax integrations, admin tooling, observability and automated end-to-end tests.
 
