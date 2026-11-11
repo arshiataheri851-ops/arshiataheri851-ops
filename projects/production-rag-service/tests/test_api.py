@@ -44,3 +44,36 @@ def test_document_upsert_replaces_chunks(client):
 
 def test_blank_question_rejected(client):
     assert client.post("/v1/query", json={"question": "  "}).status_code == 422
+
+
+def test_document_listing_and_deletion(client):
+    created = client.post(
+        "/v1/documents",
+        json={
+            "document_id": "remove-me",
+            "title": "Temporary Guide",
+            "text": "This document contains searchable temporary content.",
+        },
+    )
+    assert created.status_code == 201
+    listing = client.get("/v1/documents")
+    assert listing.status_code == 200
+    assert listing.json()[0]["document_id"] == "remove-me"
+
+    deleted = client.delete("/v1/documents/remove-me")
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+    assert client.delete("/v1/documents/remove-me").status_code == 404
+
+
+def test_document_rejects_unknown_fields(client):
+    response = client.post(
+        "/v1/documents",
+        json={
+            "document_id": "strict",
+            "title": "Strict schema",
+            "text": "A document.",
+            "unexpected": "not allowed",
+        },
+    )
+    assert response.status_code == 422
