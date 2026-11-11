@@ -40,7 +40,7 @@ def canonical_json(payload: dict) -> str:
 
 
 def create_signature(secret: str, body: str, timestamp: int) -> str:
-    signed_payload = f"{timestamp}.{body}".encode("utf-8")
+    signed_payload = f"{timestamp}.{body}".encode()
     digest = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
     return f"sha256={digest}"
 
