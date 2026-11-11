@@ -1,4 +1,7 @@
+"""Thread-safe, lazy Hugging Face model adapter."""
+
 from collections.abc import Sequence
+from threading import Lock
 from typing import Any
 
 from app.config import Settings
@@ -14,11 +17,12 @@ _LABEL_MAP = {
 
 
 class HuggingFaceSentimentPredictor:
-    """Lazy CPU-first adapter around a Hugging Face text-classification pipeline."""
+    """CPU-first model adapter with lazy loading and serialized initialization."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._pipeline: Any | None = None
+        self._load_lock = Lock()
 
     @property
     def is_loaded(self) -> bool:
@@ -26,20 +30,22 @@ class HuggingFaceSentimentPredictor:
 
     def _load_pipeline(self) -> Any:
         if self._pipeline is None:
-            try:
-                from transformers import pipeline
-            except ImportError as exc:
-                raise RuntimeError(
-                    'Model dependencies are missing. Install with: pip install -e ".[inference]"'
-                ) from exc
+            with self._load_lock:
+                if self._pipeline is None:
+                    try:
+                        from transformers import pipeline
+                    except ImportError as exc:
+                        raise RuntimeError(
+                            'Install model dependencies with: pip install -e ".[inference]"'
+                        ) from exc
 
-            self._pipeline = pipeline(
-                task="text-classification",
-                model=self.settings.model_id,
-                tokenizer=self.settings.model_id,
-                revision=self.settings.model_revision,
-                device=-1,
-            )
+                    self._pipeline = pipeline(
+                        task="text-classification",
+                        model=self.settings.model_id,
+                        tokenizer=self.settings.model_id,
+                        revision=self.settings.model_revision,
+                        device=-1,
+                    )
         return self._pipeline
 
     @staticmethod
@@ -61,10 +67,9 @@ class HuggingFaceSentimentPredictor:
             max_length=self.settings.max_sequence_length,
         )
 
-        # Transformers returns a list of label dictionaries for each input text.
+        # Normalize the single-input shape returned by Transformers pipelines.
         if len(texts) == 1 and raw_outputs and isinstance(raw_outputs[0], dict):
             raw_outputs = [raw_outputs]
-
         if len(raw_outputs) != len(texts):
             raise RuntimeError("The model returned an unexpected number of predictions.")
 
