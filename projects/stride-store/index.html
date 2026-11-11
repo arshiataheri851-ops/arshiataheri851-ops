@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101712" />
+  <meta name="description" content="STRIDE — performance gear for every move. Explore training essentials, running gear and everyday athletic wear." />
+  <title>STRIDE — Move with purpose</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="announcement">COMPLIMENTARY SHIPPING ON ORDERS OVER $100 <span>↗</span></div>
+  <header class="site-header">
+    <a class="wordmark" href="#" aria-label="STRIDE home">STRIDE<span>®</span></a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a href="#shop">Shop all</a><a href="#shop" data-nav-category="Training">Training</a><a href="#shop" data-nav-category="Running">Running</a><a href="#story">Our mindset</a>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-btn" id="search-toggle" aria-label="Focus search">⌕</button>
+      <button class="icon-btn" id="wishlist-toggle" aria-label="Show wishlist">♡ <span id="wish-count">0</span></button>
+      <button class="cart-trigger" id="cart-open" aria-label="Open shopping bag">BAG <span id="cart-count">0</span></button>
+      <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation">☰</button>
+    </div>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> BUILT FOR THE EVERYDAY ATHLETE</p>
+        <h1>MOVE<br><em>WITH</em><br> PURPOSE<span>.</span></h1>
+        <p class="hero-description">The gear you reach for. The quality you feel. Performance essentials made to keep up with every version of you.</p>
+        <a class="button button-light" href="#shop">EXPLORE THE COLLECTION <span>↗</span></a>
+        <div class="hero-note"><strong>01 / 04</strong><span>TRAIN HARD. LIVE WELL.</span></div>
+      </div>
+      <div class="hero-art" role="img" aria-label="Athlete training in a dark studio">
+        <div class="hero-orbit"></div><div class="hero-vertical">STRIDE PERFORMANCE / EST. 2024</div>
+        <div class="hero-sticker">GO<br>YOUR<br>PACE<span>✳</span></div>
+      </div>
+      <div class="hero-bottom"><span>SCROLL TO DISCOVER</span><span>↓</span><span>01 — PERFORMANCE / 2024</span></div>
+    </section>
+    <section class="ticker" aria-label="Brand values"><div>BUILT TO MOVE <b>✳</b> MADE TO LAST <b>✳</b> NO OFF DAYS <b>✳</b> BUILT TO MOVE <b>✳</b> MADE TO LAST <b>✳</b> NO OFF DAYS <b>✳</b></div></section>
+    <section class="shop-section section-wrap" id="shop">
+      <div class="section-heading">
+        <div><p class="eyebrow dark-eyebrow">THE STRIDE EDIT / 001</p><h2>Find your <em>edge.</em></h2></div>
+        <p class="section-intro">Thoughtful essentials for training days, rest days, and everything in between.</p>
+      </div>
+      <div class="shop-toolbar">
+        <div class="category-tabs" id="category-tabs">
+          <button class="active" data-category="All">ALL GEAR <sup>08</sup></button><button data-category="Training">TRAINING</button><button data-category="Running">RUNNING</button><button data-category="Accessories">ACCESSORIES</button>
+        </div>
+        <div class="toolbar-controls">
+          <label class="search-box"><span>⌕</span><input id="search-input" type="search" placeholder="Search gear..." aria-label="Search products"></label>
+          <select id="sort-select" aria-label="Sort products"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option><option value="name">Name: A–Z</option></select>
+        </div>
+      </div>
+      <div class="product-grid" id="product-grid" aria-live="polite"></div>
+      <p class="empty-state" id="empty-state" hidden>No gear found. Try another search or category.</p>
+      <div class="shop-foot"><span>SHOWING <strong id="result-count">08</strong> ESSENTIALS</span><span>DESIGNED TO GO FURTHER ↗</span></div>
+    </section>
+    <section class="manifesto" id="story">
+      <div class="manifesto-image"><span>STRIDE / FIELD NOTES</span></div>
+      <div class="manifesto-copy"><p class="eyebrow"><span class="eyebrow-line"></span> OUR MINDSET</p><h2>Progress<br>is a <em>practice.</em></h2><p>Not every day is a personal best. Some days are about showing up, finding your rhythm, and taking one more step. We make dependable gear for all of it.</p><a class="text-link" href="#shop">FIND YOUR EVERYDAY KIT <span>↗</span></a><div class="manifesto-index">STRIDE / 001—∞</div></div>
+    </section>
+    <section class="values section-wrap"><div><span>01</span><h3>Purposeful design</h3><p>Clean forms. Useful details. Nothing extra.</p></div><div><span>02</span><h3>Everyday performance</h3><p>Versatile essentials for real routines.</p></div><div><span>03</span><h3>Built to repeat</h3><p>Reliable pieces you will reach for again.</p></div></section>
+    <section class="newsletter"><p class="eyebrow">THE STRIDE LETTER</p><h2>A little more <em>momentum.</em></h2><p>New drops, training notes, and good things worth knowing.</p><form id="newsletter-form"><input type="email" placeholder="Your email address" aria-label="Email address" required><button type="submit">SIGN ME UP ↗</button></form><small>Demo form — no email is sent.</small></section>
+  </main>
+  <footer class="site-footer"><a class="wordmark" href="#">STRIDE<span>®</span></a><p>GEAR FOR THE LONG RUN.</p><div><a href="#shop">SHOP</a><a href="#story">ABOUT</a><a href="https://github.com/arshiataheri851-ops/arshiataheri851-ops" target="_blank" rel="noreferrer">GITHUB ↗</a></div><small>© 2026 STRIDE. CONCEPT E-COMMERCE PROJECT.</small></footer>
+  <div class="overlay" id="overlay"></div>
+  <aside class="cart-drawer" id="cart-drawer" aria-label="Shopping bag" aria-hidden="true"><div class="drawer-head"><div><p class="eyebrow dark-eyebrow">YOUR SELECTION</p><h2>Your bag <span id="drawer-count">(0)</span></h2></div><button class="close-btn" id="cart-close" aria-label="Close bag">×</button></div><div class="cart-items" id="cart-items"></div><div class="cart-empty" id="cart-empty"><span>◌</span><h3>Your bag is taking a breather.</h3><p>Add something that moves you.</p><button class="button button-dark" id="continue-shopping">EXPLORE GEAR ↗</button></div><div class="cart-summary" id="cart-summary"><div><span>Subtotal</span><strong id="cart-subtotal">$0.00</strong></div><p>Shipping and taxes calculated at checkout.</p><button class="button button-dark checkout-btn" id="checkout-btn">CONTINUE TO CHECKOUT ↗</button></div></aside>
+  <dialog class="checkout-dialog" id="checkout-dialog"><form method="dialog" id="checkout-form"><button class="close-btn dialog-close" aria-label="Close">×</button><p class="eyebrow dark-eyebrow">DEMO CHECKOUT</p><h2>Almost <em>there.</em></h2><p>This is a portfolio demo. No payment will be processed and no order will be placed.</p><label>Full name<input required placeholder="Alex Morgan"></label><label>Email address<input type="email" required placeholder="alex@example.com"></label><label>Delivery address<input required placeholder="Street, city, postal code"></label><button class="button button-dark" type="submit">PLACE DEMO ORDER ↗</button></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
