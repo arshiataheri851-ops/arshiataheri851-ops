@@ -2,8 +2,7 @@ name: Deploy STRIDE Store
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "projects/stride-store/**"
       - ".github/workflows/stride-store-pages.yml"
@@ -15,11 +14,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: stride-store-pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  validate-and-deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -27,6 +26,23 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate required files
+        run: |
+          test -f projects/stride-store/index.html
+          test -f projects/stride-store/styles.css
+          test -f projects/stride-store/app.js
+          test -f projects/stride-store/README.md
+          grep -q 'styles.css' projects/stride-store/index.html
+          grep -q 'app.js' projects/stride-store/index.html
+
+      - name: Validate JavaScript syntax
+        run: node --check projects/stride-store/app.js
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
