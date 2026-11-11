@@ -1,6 +1,5 @@
 """RelayForge API: event intake, subscription routing, and delivery lifecycle."""
 
-import logging
 from typing import Any
 from urllib.parse import urlparse
 
@@ -8,8 +7,6 @@ from fastapi import FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.dispatcher import Sender, WebhookDispatcher
-
-logger = logging.getLogger(__name__)
 
 
 class SubscriptionRequest(BaseModel):
@@ -81,21 +78,26 @@ def create_app(sender: Sender | None = None) -> FastAPI:
 
     @api.delete("/subscriptions/{subscription_id}", tags=["subscriptions"])
     def delete_subscription(subscription_id: str) -> dict[str, bool | str]:
-        if not api.state.dispatcher.remove_subscription(subscription_id):
+        try:
+            deleted = api.state.dispatcher.remove_subscription(subscription_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if not deleted:
             raise HTTPException(status_code=404, detail="Subscription not found.")
         return {"subscription_id": subscription_id, "deleted": True}
 
     @api.post("/events", status_code=status.HTTP_202_ACCEPTED, tags=["events"])
     def create_event(request: EventRequest) -> dict[str, Any]:
+        already_seen = api.state.dispatcher.was_event_seen(request.event_id)
         try:
             ids = api.state.dispatcher.enqueue_event(**request.model_dump())
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {
             "event_id": request.event_id,
             "delivery_ids": ids,
             "queued": len(ids),
-            "idempotent_replay": api.state.dispatcher.was_event_seen(request.event_id),
+            "idempotent_replay": already_seen,
         }
 
     @api.get("/deliveries", tags=["deliveries"])
