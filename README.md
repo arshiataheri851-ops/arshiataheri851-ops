@@ -1,28 +1,28 @@
-![Arshia Taheri — AI Engineering Portfolio](assets/profile-banner.svg)
+![Arshia Taheri — Software Engineer | AI Engineer](assets/profile-banner.svg)
 
 <h1 align="center">Arshia Taheri</h1>
-<h3 align="center">AI / ML Engineering · LLM Applications · Backend Systems</h3>
+<h3 align="center">Software Engineer | AI Engineer</h3>
 
 <p align="center">
   <a href="https://github.com/arshiataheri851-ops">GitHub</a> ·
   <a href="https://github.com/arshiataheri851-ops/arshia-taheri851">Portfolio</a> ·
-  <a href="https://www.linkedin.com/in/arshia-taheri-5b85b33b2/">LinkedIn</a>
+  <a href="https://www.linkedin.com/in/arshia-taher-5b85b33b2/">LinkedIn</a>
 </p>
 
 ---
 
 ## Profile
 
-I build software at the intersection of **applied machine learning, generative AI, Python backend engineering, and data systems**. My portfolio focuses on practical implementations with readable code, reproducible setup instructions, tests, and clearly stated limitations.
+I work across **software engineering and artificial intelligence**, building practical software solutions, AI-powered applications, backend services, and data-driven systems. My portfolio focuses on clear implementations with readable code, reproducible setup instructions, tests, and honestly stated limitations.
 
-My main interests include Persian-language NLP, retrieval systems, model-serving APIs, workflow automation, and reliable backend infrastructure.
+My engineering interests include Python development, backend architecture, Persian-language NLP, retrieval systems, LLM applications, workflow automation, and reliable model-serving infrastructure.
 
 ## Working together
 
 I am open to three types of opportunities:
 
-- **Engineering roles:** AI/ML engineering, applied NLP, LLM applications, and Python backend positions.
-- **Client projects:** clearly scoped AI, data, and backend development work, with requirements and delivery milestones agreed in writing.
+- **Software & AI engineering roles:** software development, backend engineering, applied AI/ML, NLP, and LLM applications.
+- **Client projects:** clearly scoped software, AI, data, and backend development work, with requirements and delivery milestones agreed in writing.
 - **Agency partnerships:** white-label and subcontracting discussions with software agencies and product teams, subject to project fit, scope, and delivery capacity.
 
 For professional enquiries, please reach out through [LinkedIn](https://www.linkedin.com/in/arshia-taher-5b85b33b2/).
@@ -31,10 +31,11 @@ For professional enquiries, please reach out through [LinkedIn](https://www.link
 
 | Area | Focus |
 |---|---|
-| **Applied ML** | Predictive modeling, classification, model evaluation, feature engineering |
+| **Software engineering** | Application development, clean code, APIs, software architecture, testing |
+| **Backend engineering** | Python services, REST APIs, FastAPI, Django, integrations |
+| **Applied AI & ML** | Predictive modeling, classification, model evaluation, feature engineering |
 | **Generative AI** | LLM applications, RAG pipelines, embeddings, agent workflows |
 | **NLP & Speech** | Text classification, sentiment analysis, Persian-language use cases, ASR evaluation |
-| **Backend** | Python services, REST APIs, FastAPI, Django, integrations |
 | **Data engineering** | SQL, PostgreSQL, ETL workflows, data processing |
 | **MLOps & delivery** | Model serving, Docker, Kubernetes, experiment tracking, monitoring |
 
@@ -128,4 +129,4 @@ A responsive sports retail storefront concept featuring product search, category
 
 ---
 
-<p align="center"><sub>Building practical AI systems with strong software engineering foundations.</sub></p>
+<p align="center"><sub>Software Engineer | AI Engineer — building practical software and intelligent systems.</sub></p>
