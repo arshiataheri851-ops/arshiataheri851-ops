@@ -15,6 +15,7 @@ from app.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+API_VERSION = "1.0.0"
 
 
 def create_app(
@@ -23,20 +24,20 @@ def create_app(
 ) -> FastAPI:
     app_settings = settings or get_settings()
     app = FastAPI(
-        title="Persian Sentiment API",
+        title="FarsiPulse — Persian Sentiment Intelligence API",
         description=(
             "Binary Persian review sentiment inference with conservative text normalization "
-            "and a lazily loaded Hugging Face model."
+            "and a lazily loaded, revision-pinned Hugging Face model."
         ),
-        version="0.1.0",
+        version=API_VERSION,
     )
     app.state.predictor = predictor or HuggingFaceSentimentPredictor(app_settings)
 
     @app.get("/", tags=["service"])
     def root() -> dict[str, str]:
         return {
-            "service": "persian-sentiment-api",
-            "version": "0.1.0",
+            "service": "farsipulse",
+            "version": API_VERSION,
             "docs": "/docs",
             "health": "/health",
         }
