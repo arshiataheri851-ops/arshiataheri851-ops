@@ -15,7 +15,7 @@ The avatar is a geometric AT monogram, not a generated portrait.
 
 In GitHub → Settings → Public profile:
 - Name: `Arshia Taheri`
-- Bio: `AI/ML Engineer | LLM & RAG | Python Backend | ML Systems`
+- Bio: `Software Engineer | AI Engineer`
 - Pronouns: leave unspecified unless you choose otherwise.
 - Public email: keep hidden unless you intentionally want it public.
 - Social account: add the LinkedIn profile supplied for this portfolio.
