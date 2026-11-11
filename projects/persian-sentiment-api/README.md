@@ -1,63 +1,61 @@
-# Persian Sentiment API
+# FarsiPulse — Persian Sentiment Intelligence API
 
 [![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
 
-A production-oriented REST API for Persian (Farsi) sentiment analysis, built with FastAPI and a pretrained Persian BERT model.
+FarsiPulse is a typed REST service for binary Persian review sentiment inference. It combines conservative Persian normalization, FastAPI request validation, lazy Hugging Face model loading, batch inference, and reproducible evaluation hooks.
 
-**Project status:** first working implementation. This repository includes lazy model loading, Persian text normalization, single and batch inference, health checks, Docker support, automated tests, CI, and an optional evaluation script. No benchmark score is claimed until the evaluation is run and its environment is recorded.
+## What is implemented
 
-## Architecture at a glance
+- Single-text and batch prediction endpoints (batch capped at 32 items).
+- Pydantic request/response contracts and blank-input rejection.
+- Persian Arabic-letter normalization without stripping meaningful ZWNJ characters.
+- Lazy model initialization with thread-safe first load.
+- Pinned Hugging Face model revision; no model download is needed to run the API tests.
+- Docker image, health endpoint, evaluation script, and CI-ready tests.
+
+## Architecture
 
 ```text
-Client
-  |
-  v
-FastAPI + Pydantic validation
-  |
-  v
-Persian text normalization
-  |
-  v
-Lazy Hugging Face model adapter
-  |
-  v
-Positive / Negative scores
+HTTP Client
+    |
+    v
+FastAPI Router + Pydantic Contracts
+    |
+    v
+Persian Text Normalizer
+    |
+    v
+Thread-safe Hugging Face Adapter (lazy load)
+    |
+    v
+Positive / Negative scores + model provenance
 ```
 
-## Quick start
+## Run locally
 
-Python 3.11+ is supported. For a Windows setup from the **repository root** (without running the PowerShell activation script), follow [the Windows setup guide](../../docs/LOCAL_SETUP_WINDOWS.md).
-
-For any operating system, from this project directory:
+Python 3.11+.
 
 ```bash
 python -m venv .venv
+# Windows PowerShell: .venv\\Scripts\\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
 python -m pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 
-The API and tests run without downloading model weights. Tests use a fake predictor and do not require the pretrained model.
+Open http://127.0.0.1:8000/docs. The API starts without model weights; the first prediction returns a clear 503 until inference dependencies are installed.
 
-For real inference, install the optional model dependencies:
+For real model inference:
 
 ```bash
 python -m pip install -e ".[inference]"
 ```
 
-The first real prediction downloads the pinned pretrained model from Hugging Face. The initial download can take time and requires several hundred megabytes of disk space.
+The first prediction downloads the pinned model revision from Hugging Face and may take several minutes. Set `SENTIMENT_MODEL_ID` and `SENTIMENT_MODEL_REVISION` only when intentionally switching models.
 
-Interactive docs: http://127.0.0.1:8000/docs
+## API examples
 
-## Endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/` | Service metadata |
-| GET | `/health` | Health and model-loading state |
-| POST | `/v1/sentiment` | Predict one Persian text |
-| POST | `/v1/sentiment/batch` | Predict up to 32 texts |
-
-### Single prediction
+Single prediction:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/v1/sentiment \
@@ -65,7 +63,7 @@ curl -X POST http://127.0.0.1:8000/v1/sentiment \
   -d '{"text":"کیفیت غذا عالی بود و خیلی راضی بودم"}'
 ```
 
-### Batch prediction
+Batch prediction:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/v1/sentiment/batch \
@@ -73,32 +71,16 @@ curl -X POST http://127.0.0.1:8000/v1/sentiment/batch \
   -d '{"items":[{"text":"خیلی خوب بود"},{"text":"اصلاً راضی نبودم"}]}'
 ```
 
-The response contains the normalized text, a binary `positive` / `negative` label, per-class model scores, and the model identifier. The scores are model outputs, not calibrated probabilities or guarantees.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/` | Service metadata |
+| GET | `/health` | Health and model-load state |
+| POST | `/v1/sentiment` | One prediction |
+| POST | `/v1/sentiment/batch` | Batch prediction |
 
-## Model and data provenance
+The model returns a binary `positive` / `negative` label. Scores are raw model outputs, not calibrated probabilities or guarantees.
 
-- **Model:** [HooshvareLab/bert-fa-base-uncased-sentiment-snappfood](https://huggingface.co/HooshvareLab/bert-fa-base-uncased-sentiment-snappfood)
-- **Pinned model revision:** `8c5d0be5517c4bd5e26f785b1ad60b394a80de07`
-- **Model license shown on Hugging Face:** Apache-2.0.
-- **Dataset reference:** [ParsiAI/snappfood-sentiment-analysis](https://huggingface.co/datasets/ParsiAI/snappfood-sentiment-analysis)
-- **Dataset revision used by evaluation:** `f7127a990026b685fcf3ff2086b74138ec1e9fa6`
-
-The referenced dataset exposes train, validation, and test CSV splits with Persian review text and `HAPPY` / `SAD` labels. Check the dataset publisher's current terms and permissions before using it. The dataset is not copied into this repository.
-
-## Evaluate
-
-Install the optional evaluation dependencies:
-
-```bash
-python -m pip install -e ".[inference,evaluation]"
-python scripts/evaluate.py
-```
-
-The script downloads the pinned test CSV at runtime and prints a classification report and confusion matrix. It does not upload data or publish results. Record the Python version, PyTorch/Transformers versions, hardware, dataset revision, and model revision whenever reporting metrics.
-
-## Tests and quality checks
-
-Tests use a fake predictor, so they do not download model weights:
+## Tests and lint
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -106,28 +88,33 @@ pytest
 ruff check .
 ```
 
+Tests use a deterministic fake predictor and do not download model weights.
+
+## Evaluation
+
+```bash
+python -m pip install -e ".[inference,evaluation]"
+python scripts/evaluate.py
+```
+
+The evaluation script uses pinned upstream model/data revisions and reports metrics locally. Do not publish performance claims without recording the exact model and dataset revisions, runtime versions, hardware, and test split.
+
 ## Docker
 
 ```bash
-cd projects/persian-sentiment-api
-docker build -t persian-sentiment-api .
-docker run --rm -p 8000:8000 persian-sentiment-api
+docker build -t farsipulse .
+docker run --rm -p 8000:8000 farsipulse
 ```
 
-The model is fetched on the first prediction. For repeat deployments, mount a persistent Hugging Face cache.
+The container fetches model weights on first inference. Mount a persistent Hugging Face cache for repeat runs.
 
-## Configuration
+## Model provenance and limitations
 
-Copy `.env.example` to `.env`. The default model ID and immutable revision are documented in `app/config.py`.
-
-## Limitations
-
-- The upstream model was fine-tuned for SnappFood-style review polarity. Performance may differ on other domains, dialects, sarcasm, and mixed-sentiment texts.
-- The task is binary; there is no neutral class.
-- Model confidence is not a guarantee of correctness or calibration.
-- CPU inference may be slower than GPU inference.
+- Model: [HooshvareLab/bert-fa-base-uncased-sentiment-snappfood](https://huggingface.co/HooshvareLab/bert-fa-base-uncased-sentiment-snappfood)
+- Pinned revision: `8c5d0be5517c4bd5e26f785b1ad60b394a80de07`
+- The model is fine-tuned for SnappFood-style review polarity; other domains, dialects, sarcasm, and mixed sentiment may behave differently.
+- Binary classification only; no neutral class is implemented.
+- CPU inference may be slow.
 - Do not use predictions as the sole basis for consequential decisions about people.
 
-## License
-
-The application code in this folder is MIT-licensed. Model weights and datasets remain subject to their own upstream terms.
+Application code is MIT-licensed. Model weights and datasets remain subject to their upstream terms.
