@@ -94,6 +94,11 @@ A SQLite-backed feature store with typed feature schemas, versioned entity value
 [![Intelligent Recommendation Platform CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/intelligent-recommendation-platform.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/intelligent-recommendation-platform.yml)
 A FastAPI recommendation service with SQLite interaction history, weighted view/click/purchase feedback, cold-start popularity fallback, seen-item suppression, and human-readable ranking explanations. The ranker is a transparent baseline, not a trained model.
 
+### 10. [STRIDE — Sportswear & Equipment Store](projects/stride-store/README.md)
+[![STRIDE Store CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/stride-store.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/stride-store.yml)
+
+A responsive sports retail storefront concept featuring product search, category filters, sorting, wishlist, interactive shopping bag, subtotal calculation, and a clearly labelled demo checkout. Built with HTML, CSS, and vanilla JavaScript; no payment processing or real order handling is claimed.
+
 ## Profile branding
 
 - [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
