@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "persian-sentiment-api"
-version = "0.1.0"
-description = "A FastAPI service for Persian sentiment inference using a pinned Hugging Face model."
+name = "farsipulse"
+version = "1.0.0"
+description = "Persian sentiment inference API powered by a pinned ParsBERT model."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -23,7 +23,7 @@ inference = [
 ]
 dev = [
   "httpx>=0.27,<1.0",
-  "pytest>=8.0,<9.0",
+  "pytest>=8.0,<10.0",
   "ruff>=0.6,<1.0",
 ]
 evaluation = [
