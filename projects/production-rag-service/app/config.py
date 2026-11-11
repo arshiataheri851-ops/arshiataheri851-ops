@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     max_document_chars: int = Field(default=100_000, ge=1_000, le=1_000_000)
     max_query_chars: int = Field(default=2_000, ge=2, le=10_000)
     default_top_k: int = Field(default=5, ge=1, le=20)
-    max_top_k: int = Field(default=20, ge=1, le=50)
+    max_top_k: int = Field(default=20, ge=1, le=20)
     min_relevance_score: float = Field(default=0.01, ge=0.0)
 
     @model_validator(mode="after")
