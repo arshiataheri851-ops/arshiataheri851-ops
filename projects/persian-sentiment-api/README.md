@@ -1,6 +1,6 @@
 # FarsiPulse — Persian Sentiment Intelligence API
 
-[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
+[![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 
 FarsiPulse is a typed REST service for binary Persian review sentiment inference. It combines conservative Persian normalization, FastAPI request validation, lazy Hugging Face model loading, batch inference, and reproducible evaluation hooks.
 
