@@ -63,11 +63,9 @@ For professional enquiries, please reach out through [LinkedIn](https://www.link
 
 ## Featured projects
 
-[![Advanced engineering project checks](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/advanced-engineering-projects.yml)
+[![Engineering Projects CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 
 ### 1. [FarsiPulse — Persian Sentiment Intelligence API](projects/persian-sentiment-api/README.md)
-[![Persian Sentiment API CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/persian-sentiment-api.yml)
-
 FastAPI inference service for Persian review sentiment using a pinned pretrained model. Includes conservative normalization, single and batch inference, health checks, Docker support, automated tests, CI, and an optional reproducible evaluation script. Benchmark scores are intentionally not claimed until measured.
 
 ### 2. [ML Model Serving Platform](projects/ml-model-serving-platform/README.md)
@@ -105,6 +103,20 @@ A responsive sports retail storefront concept featuring product search, category
 - [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
 - [Social preview artwork (SVG)](assets/social-preview.svg)
 - [Profile finishing steps](docs/PROFILE_FINISHING_STEPS.md)
+
+## Run the three featured APIs together
+
+The root [compose.yaml](compose.yaml) starts the three featured services with separate ports and persistent volumes for the model cache and AtlasRAG database.
+
+```bash
+docker compose up --build
+```
+
+- FarsiPulse: http://localhost:8001/docs
+- AtlasRAG: http://localhost:8002/docs
+- RelayForge: http://localhost:8003/docs
+
+FarsiPulse downloads its model on the first inference request. RelayForge intentionally has no outbound delivery transport configured by default.
 
 ## Local development
 
