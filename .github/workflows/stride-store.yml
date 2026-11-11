@@ -1,0 +1,46 @@
+name: STRIDE Store CI
+
+on:
+  push:
+    paths:
+      - "projects/stride-store/**"
+      - ".github/workflows/stride-store.yml"
+  pull_request:
+    paths:
+      - "projects/stride-store/**"
+      - ".github/workflows/stride-store.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storefront-checks:
+    name: Static storefront checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify required project files
+        run: |
+          test -s projects/stride-store/index.html
+          test -s projects/stride-store/styles.css
+          test -s projects/stride-store/app.js
+          test -s projects/stride-store/README.md
+
+      - name: Validate HTML entry references and core sections
+        run: |
+          grep -q 'href="styles.css"' projects/stride-store/index.html
+          grep -q 'src="app.js"' projects/stride-store/index.html
+          grep -q 'id="product-grid"' projects/stride-store/index.html
+          grep -q 'id="cart-drawer"' projects/stride-store/index.html
+          grep -q 'id="checkout-dialog"' projects/stride-store/index.html
+
+      - name: Validate JavaScript syntax
+        run: node --check projects/stride-store/app.js
+
+      - name: Verify documented project scope
+        run: |
+          grep -q 'No real inventory' projects/stride-store/README.md
+          grep -q 'Product roadmap' projects/stride-store/README.md
