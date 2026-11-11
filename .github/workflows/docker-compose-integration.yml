@@ -20,9 +20,9 @@ concurrency:
 
 jobs:
   compose-smoke:
-    name: Build and start all three API services
+    name: Build and exercise all three API services
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -33,18 +33,58 @@ jobs:
       - name: Build and start services
         run: docker compose up --detach --build
 
-      - name: Verify FarsiPulse API
-        run: curl --fail --silent --show-error --retry 30 --retry-delay 2 --retry-connrefused http://localhost:8001/health
+      - name: Wait for all service health endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in farsipulse atlasrag relayforge; do
+            case "$service" in
+              farsipulse) url="http://localhost:8001/health" ;;
+              atlasrag) url="http://localhost:8002/health" ;;
+              relayforge) url="http://localhost:8003/health" ;;
+            esac
+            echo "Waiting for $service at $url"
+            ready=0
+            for attempt in $(seq 1 60); do
+              if curl --fail --silent --show-error "$url" >/tmp/"$service"-health.json 2>/dev/null; then
+                cat /tmp/"$service"-health.json
+                ready=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$ready" -ne 1 ]; then
+              echo "$service did not become healthy in 120 seconds"
+              docker compose ps -a
+              docker compose logs --no-color "$service"
+              exit 1
+            fi
+          done
 
-      - name: Verify AtlasRAG API
-        run: curl --fail --silent --show-error --retry 30 --retry-delay 2 --retry-connrefused http://localhost:8002/health
+      - name: Verify real FarsiPulse HTTP inference
+        run: |
+          curl --fail --silent --show-error             --retry 30 --retry-delay 2 --retry-all-errors             -H "Content-Type: application/json"             -d '{"text":"کیفیت محصول عالی بود و کاملاً راضی هستم"}'             http://localhost:8001/v1/sentiment             -o /tmp/farsipulse-prediction.json
+          python -c "import json, math; p=json.load(open('/tmp/farsipulse-prediction.json', encoding='utf-8')); assert p['sentiment'] in {'positive','negative'}; assert math.isfinite(float(p['confidence'])); assert set(p['scores']) == {'positive','negative'}; print(json.dumps(p, ensure_ascii=False, indent=2))"
 
-      - name: Verify RelayForge API
-        run: curl --fail --silent --show-error --retry 30 --retry-delay 2 --retry-connrefused http://localhost:8003/health
+      - name: Verify AtlasRAG document ingestion and grounded retrieval
+        run: |
+          curl --fail --silent --show-error             -H "Content-Type: application/json"             -d '{"document_id":"ci-guide","title":"CI Guide","source":"ci://guide","text":"PostgreSQL indexes improve query performance by reducing the number of rows scanned."}'             http://localhost:8002/v1/documents
+          curl --fail --silent --show-error             -H "Content-Type: application/json"             -d '{"question":"How do PostgreSQL indexes improve query performance?","top_k":3}'             http://localhost:8002/v1/query             -o /tmp/atlasrag-answer.json
+          python -c "import json; p=json.load(open('/tmp/atlasrag-answer.json', encoding='utf-8')); assert p['grounded'] is True; assert len(p['citations']) > 0; print(json.dumps(p, ensure_ascii=False, indent=2))"
+
+      - name: Verify RelayForge subscription and event routing
+        run: |
+          curl --fail --silent --show-error             -H "Content-Type: application/json"             -d '{"subscription_id":"ci-orders","event_type":"order.created","url":"https://example.com/hooks/orders","secret":"ci-test-secret-at-least-16"}'             http://localhost:8003/subscriptions
+          curl --fail --silent --show-error             -H "Content-Type: application/json"             -d '{"event_id":"ci-event-001","event_type":"order.created","payload":{"order_id":1001},"timestamp":1794420000}'             http://localhost:8003/events             -o /tmp/relayforge-event.json
+          python -c "import json; p=json.load(open('/tmp/relayforge-event.json', encoding='utf-8')); assert p['queued'] == 1; assert len(p['delivery_ids']) == 1; print(json.dumps(p, indent=2))"
+          curl --fail --silent --show-error http://localhost:8003/deliveries -o /tmp/relayforge-deliveries.json
+          python -c "import json; p=json.load(open('/tmp/relayforge-deliveries.json', encoding='utf-8')); assert any(x['event_id'] == 'ci-event-001' for x in p); print('RelayForge delivery queue verified')"
 
       - name: Print service logs on failure
         if: failure()
-        run: docker compose logs --no-color
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color
 
       - name: Stop services
         if: always()
