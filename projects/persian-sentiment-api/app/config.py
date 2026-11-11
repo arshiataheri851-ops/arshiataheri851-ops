@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_MODEL_ID = "HooshvareLab/bert-fa-base-uncased-sentiment-snappfood"
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
 
     model_id: str = DEFAULT_MODEL_ID
     model_revision: str = DEFAULT_MODEL_REVISION
-    max_sequence_length: int = 512
+    max_sequence_length: int = Field(default=512, ge=8, le=512)
 
 
 @lru_cache
