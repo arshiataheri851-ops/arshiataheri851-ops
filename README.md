@@ -64,6 +64,8 @@ For professional enquiries, please reach out through [LinkedIn](https://www.link
 ## Featured projects
 
 [![Engineering Projects CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
+[![Real ParsBERT inference](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-real-inference.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-real-inference.yml)
+[![Docker Compose integration](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/docker-compose-integration.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/docker-compose-integration.yml)
 
 ### 1. [FarsiPulse — Persian Sentiment Intelligence API](projects/persian-sentiment-api/README.md)
 FastAPI inference service for Persian review sentiment using a pinned pretrained model. Includes conservative normalization, single and batch inference, health checks, Docker support, automated tests, CI, and an optional reproducible evaluation script. Benchmark scores are intentionally not claimed until measured.
