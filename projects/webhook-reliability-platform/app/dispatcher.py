@@ -179,11 +179,11 @@ class WebhookDispatcher:
         with self._connect() as db:
             pending = db.execute(
                 "SELECT 1 FROM deliveries WHERE subscription_id=? "
-                "AND status IN ('queued','retry','sending') LIMIT 1",
+                "AND status IN ('queued','retry','sending','dead_letter') LIMIT 1",
                 (subscription_id,),
             ).fetchone()
             if pending:
-                raise ValueError("Subscription has pending deliveries; dispatch or resolve them first")
+                raise ValueError("Subscription has pending or dead-letter deliveries; resolve or redrive them before removal")
             cursor = db.execute(
                 "DELETE FROM subscriptions WHERE subscription_id=?", (subscription_id,)
             )
@@ -275,6 +275,12 @@ class WebhookDispatcher:
         """Requeue a dead-letter delivery for an operator-approved new attempt cycle."""
         now = time.time()
         with self._connect() as db:
+            subscription = db.execute(
+                "SELECT 1 FROM subscriptions WHERE subscription_id=(SELECT subscription_id FROM deliveries WHERE delivery_id=?)",
+                (delivery_id,),
+            ).fetchone()
+            if subscription is None:
+                raise ValueError("Cannot redrive a delivery whose subscription no longer exists")
             cursor = db.execute(
                 """
                 UPDATE deliveries SET status='queued',attempts=0,last_status_code=NULL,
