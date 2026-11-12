@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from .retrieval import tokenize
+from .retrieval import normalize_text, tokenize
 
 
 class SQLiteStore:
@@ -49,32 +49,49 @@ class SQLiteStore:
                     document_id TEXT NOT NULL REFERENCES documents(document_id) ON DELETE CASCADE,
                     chunk_index INTEGER NOT NULL,
                     text TEXT NOT NULL,
+                    search_text TEXT NOT NULL DEFAULT '',
                     UNIQUE(document_id, chunk_index)
                 );
                 CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
                 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
                     chunk_id UNINDEXED, text, tokenize='unicode61 remove_diacritics 2'
                 );
-                CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
-                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, replace(replace(replace(replace(new.text, 'ي', 'ی'), 'ك', 'ک'), 'ة', 'ه'), char(8204), ' '));
-                END;
-                CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
-                    DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
-                END;
-                CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
-                    DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
-                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, replace(replace(replace(replace(new.text, 'ي', 'ی'), 'ك', 'ک'), 'ة', 'ه'), char(8204), ' '));
-                END;
                 """
             )
-            # Backfill databases created before FTS5 indexing was introduced.
-            db.execute(
+            # Migrate older databases to a single canonical text representation.
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(chunks)")}
+            if "search_text" not in columns:
+                db.execute("ALTER TABLE chunks ADD COLUMN search_text TEXT NOT NULL DEFAULT ''")
+
+            db.executescript(
                 """
-                INSERT INTO chunks_fts(chunk_id, text)
-                SELECT c.chunk_id, replace(replace(replace(replace(c.text, 'ي', 'ی'), 'ك', 'ک'), 'ة', 'ه'), char(8204), ' ') FROM chunks c
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM chunks_fts f WHERE f.chunk_id = c.chunk_id
-                )
+                DROP TRIGGER IF EXISTS chunks_ai;
+                DROP TRIGGER IF EXISTS chunks_ad;
+                DROP TRIGGER IF EXISTS chunks_au;
+                """
+            )
+            chunk_rows = db.execute("SELECT chunk_id, text FROM chunks").fetchall()
+            db.executemany(
+                "UPDATE chunks SET search_text=? WHERE chunk_id=?",
+                [(normalize_text(row["text"]), row["chunk_id"]) for row in chunk_rows],
+            )
+            db.execute("DELETE FROM chunks_fts")
+            db.executemany(
+                "INSERT INTO chunks_fts(chunk_id, text) VALUES (?, ?)",
+                [(row["chunk_id"], normalize_text(row["text"])) for row in chunk_rows],
+            )
+            db.executescript(
+                """
+                CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, new.search_text);
+                END;
+                CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN
+                    DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
+                END;
+                CREATE TRIGGER chunks_au AFTER UPDATE ON chunks BEGIN
+                    DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
+                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, new.search_text);
+                END;
                 """
             )
 
@@ -102,8 +119,8 @@ class SQLiteStore:
             )
             db.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
             db.executemany(
-                "INSERT INTO chunks(chunk_id,document_id,chunk_index,text) VALUES(?,?,?,?)",
-                [(f"{document_id}:{i}", document_id, i, chunk)
+                "INSERT INTO chunks(chunk_id,document_id,chunk_index,text,search_text) VALUES(?,?,?,?,?)",
+                [(f"{document_id}:{i}", document_id, i, chunk, normalize_text(chunk))
                  for i, chunk in enumerate(chunks)],
             )
         return existed
