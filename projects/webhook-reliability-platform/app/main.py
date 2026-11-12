@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.dispatcher import Sender, WebhookDispatcher
