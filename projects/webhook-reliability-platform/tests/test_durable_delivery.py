@@ -50,6 +50,7 @@ def test_retry_is_scheduled_then_delivered_by_due_worker(tmp_path):
         base_delay_seconds=0.01, max_delay_seconds=0.01,
     )
     assert first.status == "retry"
+    time.sleep(0.02)
     assert dispatcher.dispatch_due(
         sender, max_attempts=3, base_delay_seconds=0.01
     )[0].status == "delivered"
