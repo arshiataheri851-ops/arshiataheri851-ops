@@ -24,8 +24,12 @@ class FakePredictor:
         return results
 
 
-def make_client() -> TestClient:
-    settings = Settings(model_id="test-model", model_revision="test-revision")
+def make_client(api_key: str | None = None) -> TestClient:
+    settings = Settings(
+        model_id="test-model",
+        model_revision="test-revision",
+        api_key=api_key,
+    )
     return TestClient(create_app(settings=settings, predictor=FakePredictor()))
 
 
@@ -71,3 +75,29 @@ def test_batch_limit_is_enforced() -> None:
     items = [{"text": "خوب"} for _ in range(33)]
     response = make_client().post("/v1/sentiment/batch", json={"items": items})
     assert response.status_code == 422
+
+
+def test_api_key_is_required_when_configured() -> None:
+    client = make_client(api_key="test-secret")
+    response = client.post("/v1/sentiment", json={"text": "کیفیت عالی بود"})
+    assert response.status_code == 401
+
+
+def test_valid_api_key_allows_inference() -> None:
+    client = make_client(api_key="test-secret")
+    response = client.post(
+        "/v1/sentiment",
+        headers={"X-API-Key": "test-secret"},
+        json={"text": "کیفیت عالی بود"},
+    )
+    assert response.status_code == 200
+
+
+def test_invalid_api_key_is_rejected() -> None:
+    client = make_client(api_key="test-secret")
+    response = client.post(
+        "/v1/sentiment",
+        headers={"X-API-Key": "wrong-secret"},
+        json={"text": "کیفیت عالی بود"},
+    )
+    assert response.status_code == 401
