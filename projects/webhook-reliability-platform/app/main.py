@@ -69,6 +69,7 @@ def create_app(
     enable_worker: bool = False,
     poll_interval_seconds: float = 1.0,
     max_attempts: int = 5,
+    retry_base_delay_seconds: float = 2.0,
 ) -> FastAPI:
     if enable_worker and sender is None:
         raise ValueError("Background delivery requires a configured sender")
@@ -77,9 +78,15 @@ def create_app(
 
     async def worker_loop() -> None:
         while True:
-            await asyncio.to_thread(
-                dispatcher.dispatch_due, sender, max_attempts, 50
-            )
+            try:
+                await asyncio.to_thread(
+                    dispatcher.dispatch_due, sender, max_attempts, 50,
+                    retry_base_delay_seconds,
+                )
+            except Exception:
+                # Keep the worker alive; operational logs/metrics should alert on repeated failures.
+                await asyncio.sleep(max(poll_interval_seconds, 1.0))
+                continue
             await asyncio.sleep(poll_interval_seconds)
 
     @asynccontextmanager
@@ -216,4 +223,5 @@ app = create_app(
     database_path=os.getenv("RELAYFORGE_DATABASE_PATH", "data/relayforge.sqlite3"),
     enable_worker=_worker_enabled(),
     max_attempts=int(os.getenv("RELAYFORGE_MAX_ATTEMPTS", "5")),
+    retry_base_delay_seconds=float(os.getenv("RELAYFORGE_RETRY_BASE_DELAY_SECONDS", "2")),
 )
