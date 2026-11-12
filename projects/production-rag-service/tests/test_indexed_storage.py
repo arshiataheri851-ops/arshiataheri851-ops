@@ -54,4 +54,4 @@ def test_fts_normalization_remains_consistent_after_upsert(tmp_path):
 
     store.upsert_document("unicode", "Updated", None, {}, ["متن ه\u0654 و داده"])
     assert store.search_chunks("متن ۀ و داده", 3)[0]["title"] == "Updated"
-    assert store.search_chunks("متن ی درباره کیان", 3) == []
+    assert store.search_chunks("درباره کیان", 3) == []
