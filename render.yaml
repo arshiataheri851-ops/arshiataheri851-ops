@@ -9,6 +9,8 @@ services:
     healthCheckPath: /health
     autoDeploy: false
     envVars:
+      - key: SENTIMENT_API_KEY
+        sync: false
       - key: SENTIMENT_INFERENCE_BATCH_SIZE
         value: "8"
       - key: SENTIMENT_CPU_THREADS
