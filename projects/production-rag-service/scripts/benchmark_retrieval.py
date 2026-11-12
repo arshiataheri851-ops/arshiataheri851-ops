@@ -3,8 +3,8 @@
 import argparse
 import json
 import statistics
-import time
 import tempfile
+import time
 from pathlib import Path
 
 from app.store import SQLiteStore
