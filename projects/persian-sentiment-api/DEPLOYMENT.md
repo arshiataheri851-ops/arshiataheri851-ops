@@ -15,6 +15,8 @@ the Render account and an explicit deployment by the repository owner.
 - Hugging Face cache is stored at `HF_HOME`; mount persistent storage there
   to avoid downloading the pinned model after every restart.
 - API health check: `GET /health`.
+- Optional API-key authentication is implemented. The Render Blueprint prompts
+  for `SENTIMENT_API_KEY`; set a long random secret before exposing inference.
 
 ## Deploy with Render
 
@@ -23,21 +25,25 @@ the Render account and an explicit deployment by the repository owner.
    service before applying it.
 3. The blueprint requests a paid Starter web service and a 5 GB persistent
    disk. Confirm the current provider pricing and region availability first.
-4. Keep the model ID and pinned revision at their defaults unless a new model
+4. Set `SENTIMENT_API_KEY` in Render to a long random secret. Never commit the
+   secret or paste it into source control. Without this setting, inference
+   routes remain unauthenticated.
+5. Keep the model ID and pinned revision at their defaults unless a new model
    version has been evaluated and intentionally approved.
-5. Deploy manually. The blueprint sets `autoDeploy: false` so a code push
+6. Deploy manually. The blueprint sets `autoDeploy: false` so a code push
    cannot silently trigger a production release.
-6. After deployment, check `/health`, then send one controlled Persian test
-   request to `POST /v1/sentiment`. The first inference may take longer while
-   model weights are loaded; later requests should reuse the in-process model.
+7. After deployment, check `/health`, then send one controlled Persian test
+   request to `POST /v1/sentiment` with the `X-API-Key` header. The first
+   inference may take longer while model weights are loaded; later requests
+   should reuse the in-process model.
 
 ## Required operational controls before public traffic
 
-The API validates text length (4,000 characters) and batch size (32 items), but
-it does not implement user authentication, API-key management, per-client rate
-limits, billing, or tenant isolation. Do not expose it as an unrestricted paid
-or sensitive-data API until those controls are supplied by an API gateway or
-implemented in the service.
+The service can require an API key on both inference routes and validates text
+length (4,000 characters) and batch size (32 items). API-key validation alone
+does not provide per-client rate limits, billing, tenant isolation, or abuse
+protection. Add those controls at an API gateway or reverse proxy before
+accepting public or paid traffic.
 
 For a public endpoint:
 
@@ -66,10 +72,11 @@ docker run --rm -p 8001:8000 \
   -e SENTIMENT_INFERENCE_BATCH_SIZE=8 \
   -v farsipulse-model-cache:/home/app/.cache/huggingface \
   farsipulse:local
-``
+```
 
 Then open `http://127.0.0.1:8001/docs` and check
-`http://127.0.0.1:8001/health`.
+`http://127.0.0.1:8001/health`. If an API key is configured, include
+`X-API-Key` in inference requests.
 
 ## Evaluation before release
 
