@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 
+TEST_API_KEY = "test-only-secret-value-at-least-32-chars"
+
 
 class FakePredictor:
     is_loaded = True
@@ -78,26 +80,34 @@ def test_batch_limit_is_enforced() -> None:
 
 
 def test_api_key_is_required_when_configured() -> None:
-    client = make_client(api_key="test-secret")
+    client = make_client(api_key=TEST_API_KEY)
     response = client.post("/v1/sentiment", json={"text": "کیفیت عالی بود"})
     assert response.status_code == 401
 
 
 def test_valid_api_key_allows_inference() -> None:
-    client = make_client(api_key="test-secret")
+    client = make_client(api_key=TEST_API_KEY)
     response = client.post(
         "/v1/sentiment",
-        headers={"X-API-Key": "test-secret"},
+        headers={"X-API-Key": TEST_API_KEY},
         json={"text": "کیفیت عالی بود"},
     )
     assert response.status_code == 200
 
 
 def test_invalid_api_key_is_rejected() -> None:
-    client = make_client(api_key="test-secret")
+    client = make_client(api_key=TEST_API_KEY)
     response = client.post(
         "/v1/sentiment",
         headers={"X-API-Key": "wrong-secret"},
         json={"text": "کیفیت عالی بود"},
     )
     assert response.status_code == 401
+
+
+def test_api_key_must_be_long_enough() -> None:
+    try:
+        Settings(api_key="too-short")
+    except ValueError:
+        return
+    raise AssertionError("Short API keys must be rejected.")
