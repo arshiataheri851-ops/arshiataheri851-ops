@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     model_id: str = DEFAULT_MODEL_ID
     model_revision: str = DEFAULT_MODEL_REVISION
     max_sequence_length: int = Field(default=512, ge=8, le=512)
+    inference_batch_size: int = Field(default=16, ge=1, le=32)
+    cpu_threads: int = Field(default=2, ge=1, le=16)
 
 
 @lru_cache
