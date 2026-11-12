@@ -74,13 +74,13 @@ def test_reusing_event_id_with_different_payload_is_rejected():
 
 
 def test_dispatch_without_transport_is_explicitly_unavailable():
-    client = TestClient(create_app())
+    client = make_client()
     response = client.post("/deliveries/missing/dispatch?timestamp=1")
     assert response.status_code == 503
 
 
 def test_secrets_are_never_returned_from_subscription_listing():
-    client = TestClient(create_app())
+    client = make_client()
     client.post("/subscriptions", json=subscription_payload())
     response = client.get("/subscriptions")
     assert response.status_code == 200
@@ -88,7 +88,7 @@ def test_secrets_are_never_returned_from_subscription_listing():
 
 
 def test_subscription_cannot_be_removed_with_pending_deliveries():
-    client = TestClient(create_app())
+    client = make_client()
     client.post("/subscriptions", json=subscription_payload())
     client.post("/events", json={
         "event_id": "evt-pending",
@@ -101,7 +101,7 @@ def test_subscription_cannot_be_removed_with_pending_deliveries():
 
 
 def test_invalid_subscription_url_is_rejected():
-    client = TestClient(create_app())
+    client = make_client()
     payload = subscription_payload()
     payload["url"] = "http://example.com/hook"
     assert client.post("/subscriptions", json=payload).status_code == 422
