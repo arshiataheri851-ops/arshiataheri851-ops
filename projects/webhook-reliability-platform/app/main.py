@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, Header, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.dispatcher import Sender, WebhookDispatcher
@@ -70,6 +71,8 @@ def create_app(
     poll_interval_seconds: float = 1.0,
     max_attempts: int = 5,
     retry_base_delay_seconds: float = 2.0,
+    api_token: str | None = None,
+    operator_token: str | None = None,
 ) -> FastAPI:
     if enable_worker and sender is None:
         raise ValueError("Background delivery requires a configured sender")
@@ -115,6 +118,22 @@ def create_app(
         version="2.0.0",
         lifespan=lifespan,
     )
+    def _check_token(candidate: str | None, expected: str | None, scope: str) -> None:
+        if not expected or len(expected) < 32:
+            raise HTTPException(status_code=503, detail=f"{scope} authentication is not configured.")
+        if candidate is None or not secrets.compare_digest(candidate, expected):
+            raise HTTPException(status_code=401, detail=f"A valid {scope} token is required.")
+
+    def require_api_token(
+        candidate: Annotated[str | None, Header(alias="X-RelayForge-API-Key")] = None,
+    ) -> None:
+        _check_token(candidate, api_token, "producer")
+
+    def require_operator_token(
+        candidate: Annotated[str | None, Header(alias="X-RelayForge-Operator-Key")] = None,
+    ) -> None:
+        _check_token(candidate, operator_token, "operator")
+
     api.state.dispatcher = dispatcher
     api.state.sender = sender
     api.state.worker_enabled = enable_worker
@@ -135,7 +154,7 @@ def create_app(
             "total_deliveries": dispatcher.count_deliveries(),
         }
 
-    @api.post("/subscriptions", status_code=status.HTTP_201_CREATED, tags=["subscriptions"])
+    @api.post("/subscriptions", status_code=status.HTTP_201_CREATED, tags=["subscriptions"], dependencies=[Depends(require_operator_token)])
     def create_subscription(request: SubscriptionRequest) -> dict[str, str]:
         try:
             item = dispatcher.register_subscription(**request.model_dump())
@@ -143,11 +162,11 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"subscription_id": item.subscription_id, "event_type": item.event_type}
 
-    @api.get("/subscriptions", tags=["subscriptions"])
+    @api.get("/subscriptions", tags=["subscriptions"], dependencies=[Depends(require_operator_token)])
     def list_subscriptions() -> list[dict[str, str]]:
         return dispatcher.list_subscriptions()
 
-    @api.delete("/subscriptions/{subscription_id}", tags=["subscriptions"])
+    @api.delete("/subscriptions/{subscription_id}", tags=["subscriptions"], dependencies=[Depends(require_operator_token)])
     def delete_subscription(subscription_id: str) -> dict[str, bool | str]:
         try:
             deleted = dispatcher.remove_subscription(subscription_id)
@@ -157,7 +176,7 @@ def create_app(
             raise HTTPException(status_code=404, detail="Subscription not found.")
         return {"subscription_id": subscription_id, "deleted": True}
 
-    @api.post("/events", status_code=status.HTTP_202_ACCEPTED, tags=["events"])
+    @api.post("/events", status_code=status.HTTP_202_ACCEPTED, tags=["events"], dependencies=[Depends(require_api_token)])
     def create_event(request: EventRequest) -> dict[str, Any]:
         already_seen = dispatcher.was_event_seen(request.event_id)
         try:
@@ -171,7 +190,7 @@ def create_app(
             "idempotent_replay": already_seen,
         }
 
-    @api.get("/deliveries", tags=["deliveries"])
+    @api.get("/deliveries", tags=["deliveries"], dependencies=[Depends(require_operator_token)])
     def list_deliveries(
         delivery_status: Annotated[str | None, Query(alias="status")] = None,
         limit: Annotated[int, Query(ge=1, le=500)] = 100,
@@ -182,14 +201,14 @@ def create_app(
             raise HTTPException(status_code=422, detail="Unsupported delivery status.")
         return dispatcher.list_deliveries(delivery_status, limit)
 
-    @api.get("/deliveries/{delivery_id}", tags=["deliveries"])
+    @api.get("/deliveries/{delivery_id}", tags=["deliveries"], dependencies=[Depends(require_operator_token)])
     def get_delivery(delivery_id: str) -> dict[str, Any]:
         item = dispatcher.get_delivery(delivery_id)
         if item is None:
             raise HTTPException(status_code=404, detail="Delivery not found.")
         return item.__dict__
 
-    @api.post("/deliveries/{delivery_id}/redrive", tags=["deliveries"])
+    @api.post("/deliveries/{delivery_id}/redrive", tags=["deliveries"], dependencies=[Depends(require_operator_token)])
     def redrive_delivery(delivery_id: str) -> dict[str, Any]:
         current = dispatcher.get_delivery(delivery_id)
         if current is None:
@@ -199,10 +218,13 @@ def create_app(
                 status_code=409,
                 detail="Only dead-letter deliveries can be redriven.",
             )
-        item = dispatcher.redrive_delivery(delivery_id)
+        try:
+            item = dispatcher.redrive_delivery(delivery_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         return item.__dict__
 
-    @api.post("/deliveries/{delivery_id}/dispatch", tags=["deliveries"])
+    @api.post("/deliveries/{delivery_id}/dispatch", tags=["deliveries"], dependencies=[Depends(require_operator_token)])
     def dispatch_delivery(
         delivery_id: str,
         timestamp: Annotated[int, Query(gt=0)] | None = None,
@@ -237,4 +259,6 @@ app = create_app(
     enable_worker=_worker_enabled(),
     max_attempts=int(os.getenv("RELAYFORGE_MAX_ATTEMPTS", "5")),
     retry_base_delay_seconds=float(os.getenv("RELAYFORGE_RETRY_BASE_DELAY_SECONDS", "2")),
+    api_token=os.getenv("RELAYFORGE_API_TOKEN"),
+    operator_token=os.getenv("RELAYFORGE_OPERATOR_TOKEN"),
 )
