@@ -14,7 +14,7 @@ RelayForge accepts events, routes them to subscriptions, signs canonical payload
 - Automatic background worker, when explicitly enabled and configured with an outbound allowlist.
 - Exponential retry backoff with jitter, attempt limits, delivery attempt history, and dead-letter state.
 - Atomic worker claims with leases; expired sending leases become eligible for recovery after a worker crash.
-- Bounded delivery listing and per-delivery status inspection.
+- Bounded delivery listing, per-delivery status inspection, and operator-controlled dead-letter redrive.
 - Payload limits, HTTPS-only subscriptions, and secret omission from subscription-list responses.
 
 ## Delivery semantics
@@ -101,7 +101,7 @@ curl -X POST http://127.0.0.1:8000/events \
 
 Inspect deliveries: GET /deliveries?status=queued
 
-Inspect one delivery: GET /deliveries/{delivery_id}
+Inspect one delivery: GET /deliveries/{delivery_id}\n\nRequeue a dead-letter delivery after operator review: POST /deliveries/{delivery_id}/redrive
 
 When the background worker is enabled, queued deliveries and due retries are sent automatically. When it is disabled, an operator can dispatch an item manually using POST /deliveries/{delivery_id}/dispatch. Manual dispatch respects the scheduled retry time.
 
