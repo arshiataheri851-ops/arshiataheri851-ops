@@ -68,11 +68,15 @@ For a real sender, configure the allowed receiver hostnames before starting the 
 ```bash
 # PowerShell
 $env:RELAYFORGE_ALLOWED_HOSTS = "hooks.example.com"
+$env:RELAYFORGE_API_TOKEN = "<at-least-32-random-characters>"
+$env:RELAYFORGE_OPERATOR_TOKEN = "<a-different-at-least-32-random-characters>"
 $env:RELAYFORGE_ENABLE_WORKER = "true"
 $env:RELAYFORGE_DATABASE_PATH = "data/relayforge.sqlite3"
 
 # macOS/Linux
 export RELAYFORGE_ALLOWED_HOSTS="hooks.example.com"
+export RELAYFORGE_API_TOKEN="<at-least-32-random-characters>"
+export RELAYFORGE_OPERATOR_TOKEN="<a-different-at-least-32-random-characters>"
 export RELAYFORGE_ENABLE_WORKER="true"
 export RELAYFORGE_DATABASE_PATH="data/relayforge.sqlite3"
 
@@ -83,7 +87,9 @@ The allowlist is exact-host matching; do not use broad wildcards. The sender rej
 
 ## API workflow
 
-Register a subscription:
+All write/read API routes require authentication. Event producers use `X-RelayForge-API-Key`; subscription and delivery administration uses the separate `X-RelayForge-Operator-Key`. Both secrets must be at least 32 characters. If either is missing or too short, its protected routes fail closed with HTTP 503. Keep the operator token restricted to trusted operators.
+
+Register a subscription (operator token):
 
 ```bash
 curl -X POST http://127.0.0.1:8000/subscriptions \
@@ -91,7 +97,7 @@ curl -X POST http://127.0.0.1:8000/subscriptions \
   -d '{"subscription_id":"orders","event_type":"order.created","url":"https://hooks.example.com/orders","secret":"replace-with-a-long-random-secret"}'
 ```
 
-Submit an event:
+Submit an event (producer token):
 
 ```bash
 curl -X POST http://127.0.0.1:8000/events \
@@ -111,6 +117,8 @@ When the background worker is enabled, queued deliveries and due retries are sen
 |---|---|---|
 | RELAYFORGE_DATABASE_PATH | data/relayforge.sqlite3 in the service entrypoint | Persistent SQLite database path |
 | RELAYFORGE_ALLOWED_HOSTS | empty | Comma-separated exact hostnames permitted for outbound webhooks |
+| RELAYFORGE_API_TOKEN | empty | Producer API token; minimum 32 characters; protected routes fail closed if unset |
+| RELAYFORGE_OPERATOR_TOKEN | empty | Separate operator token for subscription and delivery administration; minimum 32 characters |
 | RELAYFORGE_ENABLE_WORKER | false | Enable automatic background dispatch |
 | RELAYFORGE_MAX_ATTEMPTS | 5 | Maximum attempts per delivery (1–10) |
 | RELAYFORGE_RETRY_BASE_DELAY_SECONDS | 2 | Base delay for exponential retry backoff |
@@ -130,10 +138,12 @@ Tests cover durable restart recovery, event idempotency, HMAC signing, retry/dea
 ## Operational security and limitations
 
 - Treat subscription signing secrets as sensitive. SQLite stores them locally; use encrypted disks and restrict database/backup access. A production multi-tenant service should move secrets to a dedicated secret manager or encrypted column store.
-- Keep the service behind authenticated ingress/API access controls; the sample API does not implement tenant authentication or authorization.
+- Producer and operator routes enforce separate constant-time-checked bearer-style custom header tokens. The operator token grants administrative access; distribute it only to trusted operators. Keep the service behind authenticated ingress/API access controls as an additional boundary.
 - Maintain a strict outbound hostname allowlist and network egress policy. Do not accept arbitrary user-controlled callback destinations in an internet-facing deployment.
 - SQLite WAL is a durable single-node store, not a distributed queue. Do not run multiple independent replicas against separate local database files and assume shared state. For multi-node scale, move the outbox and leases to PostgreSQL and use a dedicated worker fleet.
 - Delivery is at-least-once. Exactly-once side effects require receiver-side idempotency and cannot be guaranteed by the sender alone.
+- Dead-letter deliveries block subscription removal until resolved; redrive also verifies the subscription still exists.
+- The Compose port binds to loopback only. Do not publish the service directly to the internet; place it behind authenticated ingress and network egress controls.
 - Dead-letter review, metrics/alerts, backup/restore drills, retention policy, and operational dashboards remain deployment responsibilities.
 
 This is a production-oriented reference implementation, not a claim that a public multi-tenant delivery platform has been deployed or independently security-audited.
