@@ -1,5 +1,11 @@
-"""RelayForge API: event intake, subscription routing, and delivery lifecycle."""
+"""RelayForge API with durable outbox and optional background delivery worker."""
 
+from __future__ import annotations
+
+import asyncio
+import os
+import time
+from contextlib import asynccontextmanager
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
@@ -7,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.dispatcher import Sender, WebhookDispatcher
+from app.sender import HttpxWebhookSender
 
 
 class SubscriptionRequest(BaseModel):
@@ -44,42 +51,99 @@ class EventRequest(BaseModel):
         return value
 
 
-def create_app(sender: Sender | None = None) -> FastAPI:
+def _worker_enabled() -> bool:
+    return os.getenv("RELAYFORGE_ENABLE_WORKER", "false").lower() in {"1", "true", "yes"}
+
+
+def _allowed_hosts() -> set[str]:
+    return {
+        host.strip().lower()
+        for host in os.getenv("RELAYFORGE_ALLOWED_HOSTS", "").split(",")
+        if host.strip()
+    }
+
+
+def create_app(
+    sender: Sender | None = None,
+    database_path: str = ":memory:",
+    enable_worker: bool = False,
+    poll_interval_seconds: float = 1.0,
+    max_attempts: int = 5,
+) -> FastAPI:
+    if enable_worker and sender is None:
+        raise ValueError("Background delivery requires a configured sender")
+
+    dispatcher = WebhookDispatcher(database_path)
+
+    async def worker_loop() -> None:
+        while True:
+            await asyncio.to_thread(
+                dispatcher.dispatch_due, sender, max_attempts, 50
+            )
+            await asyncio.sleep(poll_interval_seconds)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        task = asyncio.create_task(worker_loop()) if enable_worker else None
+        try:
+            yield
+        finally:
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            close = getattr(sender, "close", None)
+            if callable(close):
+                close()
+
     api = FastAPI(
         title="RelayForge — Reliable Webhook Delivery Engine",
         description=(
-            "Idempotent event routing, HMAC-SHA256 signing, bounded retries, "
-            "and explicit dead-letter handling. The default mode performs no network calls."
+            "Durable SQLite outbox, allowlisted HTTP transport, HMAC-SHA256 signing, "
+            "automatic exponential-backoff retries, and dead-letter handling. "
+            "Delivery semantics are at-least-once; receivers should deduplicate by delivery ID."
         ),
-        version="1.1.0",
+        version="2.0.0",
+        lifespan=lifespan,
     )
-    api.state.dispatcher = WebhookDispatcher()
+    api.state.dispatcher = dispatcher
     api.state.sender = sender
+    api.state.worker_enabled = enable_worker
 
     @api.get("/", tags=["service"])
     def root() -> dict[str, str]:
         return {"service": "relayforge", "version": api.version, "docs": "/docs"}
 
     @api.get("/health", tags=["service"])
-    def health() -> dict[str, str]:
-        return {"status": "ok", "delivery_mode": "injected-transport-only"}
+    def health() -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "storage": "sqlite",
+            "delivery_mode": "automatic" if enable_worker else (
+                "manual" if sender is not None else "disabled"
+            ),
+            "pending_deliveries": dispatcher.count_pending(),
+            "total_deliveries": dispatcher.count_deliveries(),
+        }
 
     @api.post("/subscriptions", status_code=status.HTTP_201_CREATED, tags=["subscriptions"])
     def create_subscription(request: SubscriptionRequest) -> dict[str, str]:
         try:
-            item = api.state.dispatcher.register_subscription(**request.model_dump())
+            item = dispatcher.register_subscription(**request.model_dump())
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"subscription_id": item.subscription_id, "event_type": item.event_type}
 
     @api.get("/subscriptions", tags=["subscriptions"])
     def list_subscriptions() -> list[dict[str, str]]:
-        return api.state.dispatcher.list_subscriptions()
+        return dispatcher.list_subscriptions()
 
     @api.delete("/subscriptions/{subscription_id}", tags=["subscriptions"])
     def delete_subscription(subscription_id: str) -> dict[str, bool | str]:
         try:
-            deleted = api.state.dispatcher.remove_subscription(subscription_id)
+            deleted = dispatcher.remove_subscription(subscription_id)
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         if not deleted:
@@ -88,9 +152,9 @@ def create_app(sender: Sender | None = None) -> FastAPI:
 
     @api.post("/events", status_code=status.HTTP_202_ACCEPTED, tags=["events"])
     def create_event(request: EventRequest) -> dict[str, Any]:
-        already_seen = api.state.dispatcher.was_event_seen(request.event_id)
+        already_seen = dispatcher.was_event_seen(request.event_id)
         try:
-            ids = api.state.dispatcher.enqueue_event(**request.model_dump())
+            ids = dispatcher.enqueue_event(**request.model_dump())
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {
@@ -103,30 +167,35 @@ def create_app(sender: Sender | None = None) -> FastAPI:
     @api.get("/deliveries", tags=["deliveries"])
     def list_deliveries(
         delivery_status: Annotated[str | None, Query(alias="status")] = None,
+        limit: Annotated[int, Query(ge=1, le=500)] = 100,
     ) -> list[dict[str, Any]]:
         if delivery_status is not None and delivery_status not in {
-            "queued", "retry", "delivered", "dead_letter"
+            "queued", "sending", "retry", "delivered", "dead_letter"
         }:
             raise HTTPException(status_code=422, detail="Unsupported delivery status.")
-        return api.state.dispatcher.list_deliveries(delivery_status)
+        return dispatcher.list_deliveries(delivery_status, limit)
+
+    @api.get("/deliveries/{delivery_id}", tags=["deliveries"])
+    def get_delivery(delivery_id: str) -> dict[str, Any]:
+        item = dispatcher.get_delivery(delivery_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="Delivery not found.")
+        return item.__dict__
 
     @api.post("/deliveries/{delivery_id}/dispatch", tags=["deliveries"])
     def dispatch_delivery(
         delivery_id: str,
-        timestamp: Annotated[int, Query(gt=0)],
-        max_attempts: Annotated[int, Query(ge=1, le=10)] = 3,
+        timestamp: Annotated[int, Query(gt=0)] | None = None,
+        max_attempts: Annotated[int, Query(ge=1, le=10)] = 5,
     ) -> dict[str, Any]:
         if api.state.sender is None:
             raise HTTPException(
                 status_code=503,
-                detail=(
-                    "No delivery transport configured. Inject a sender into create_app(); "
-                    "the default server never makes outbound network requests."
-                ),
+                detail="No transport configured. Set RELAYFORGE_ALLOWED_HOSTS or inject a sender.",
             )
         try:
-            result = api.state.dispatcher.dispatch(
-                delivery_id, api.state.sender, timestamp, max_attempts
+            result = dispatcher.dispatch(
+                delivery_id, api.state.sender, timestamp or int(time.time()), max_attempts
             )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Delivery not found.") from exc
@@ -137,4 +206,14 @@ def create_app(sender: Sender | None = None) -> FastAPI:
     return api
 
 
-app = create_app()
+def _production_sender() -> HttpxWebhookSender | None:
+    hosts = _allowed_hosts()
+    return HttpxWebhookSender(hosts) if hosts else None
+
+
+app = create_app(
+    sender=_production_sender(),
+    database_path=os.getenv("RELAYFORGE_DATABASE_PATH", "data/relayforge.sqlite3"),
+    enable_worker=_worker_enabled(),
+    max_attempts=int(os.getenv("RELAYFORGE_MAX_ATTEMPTS", "5")),
+)
