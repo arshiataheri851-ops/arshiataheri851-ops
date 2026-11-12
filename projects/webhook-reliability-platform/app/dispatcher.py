@@ -65,7 +65,7 @@ class WebhookDispatcher:
     using the stable X-Webhook-Delivery header.
     """
 
-    def __init__(self, database_path: str = "data/relayforge.sqlite3") -> None:
+    def __init__(self, database_path: str = ":memory:") -> None:
         self.database_path = database_path
         self._memory_uri = (
             f"file:relayforge-{uuid4().hex}?mode=memory&cache=shared"
