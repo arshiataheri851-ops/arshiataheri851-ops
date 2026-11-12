@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     max_sequence_length: int = Field(default=512, ge=8, le=512)
     inference_batch_size: int = Field(default=16, ge=1, le=32)
     cpu_threads: int = Field(default=2, ge=1, le=16)
-    api_key: str | None = None
+    api_key: str | None = Field(default=None, min_length=32)
 
 
 @lru_cache
