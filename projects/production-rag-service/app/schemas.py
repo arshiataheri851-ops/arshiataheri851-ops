@@ -65,7 +65,7 @@ class QueryResponse(BaseModel):
     answer: str
     grounded: bool
     citations: list[Citation]
-    retrieval_method: str = "bm25"
+    retrieval_method: str = "sqlite_fts5"
 
 
 class EvaluationCase(BaseModel):
