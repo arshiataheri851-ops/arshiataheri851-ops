@@ -60,7 +60,8 @@ class SQLiteStore:
             )
             # Migrate older databases to a single canonical text representation.
             columns = {row["name"] for row in db.execute("PRAGMA table_info(chunks)")}
-            if "search_text" not in columns:
+            needs_rebuild = "search_text" not in columns
+            if needs_rebuild:
                 db.execute("ALTER TABLE chunks ADD COLUMN search_text TEXT NOT NULL DEFAULT ''")
 
             db.executescript(
@@ -70,16 +71,17 @@ class SQLiteStore:
                 DROP TRIGGER IF EXISTS chunks_au;
                 """
             )
-            chunk_rows = db.execute("SELECT chunk_id, text FROM chunks").fetchall()
-            db.executemany(
-                "UPDATE chunks SET search_text=? WHERE chunk_id=?",
-                [(normalize_text(row["text"]), row["chunk_id"]) for row in chunk_rows],
-            )
-            db.execute("DELETE FROM chunks_fts")
-            db.executemany(
-                "INSERT INTO chunks_fts(chunk_id, text) VALUES (?, ?)",
-                [(row["chunk_id"], normalize_text(row["text"])) for row in chunk_rows],
-            )
+            if needs_rebuild:
+                chunk_rows = db.execute("SELECT chunk_id, text FROM chunks").fetchall()
+                db.executemany(
+                    "UPDATE chunks SET search_text=? WHERE chunk_id=?",
+                    [(normalize_text(row["text"]), row["chunk_id"]) for row in chunk_rows],
+                )
+                db.execute("DELETE FROM chunks_fts")
+                db.executemany(
+                    "INSERT INTO chunks_fts(chunk_id, text) VALUES (?, ?)",
+                    [(row["chunk_id"], normalize_text(row["text"])) for row in chunk_rows],
+                )
             db.executescript(
                 """
                 CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
