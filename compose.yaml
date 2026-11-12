@@ -29,8 +29,17 @@ services:
       context: ./projects/webhook-reliability-platform
     ports:
       - "8003:8000"
+    environment:
+      RELAYFORGE_DATABASE_PATH: /srv/app/data/relayforge.sqlite3
+      RELAYFORGE_ALLOWED_HOSTS: ${RELAYFORGE_ALLOWED_HOSTS:-}
+      RELAYFORGE_ENABLE_WORKER: ${RELAYFORGE_ENABLE_WORKER:-false}
+      RELAYFORGE_MAX_ATTEMPTS: ${RELAYFORGE_MAX_ATTEMPTS:-5}
+      RELAYFORGE_RETRY_BASE_DELAY_SECONDS: ${RELAYFORGE_RETRY_BASE_DELAY_SECONDS:-2}
+    volumes:
+      - relayforge-data:/srv/app/data
     restart: unless-stopped
 
 volumes:
   farsipulse-model-cache:
   atlasrag-data:
+  relayforge-data:
