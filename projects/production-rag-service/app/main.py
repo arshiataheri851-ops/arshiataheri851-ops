@@ -72,8 +72,11 @@ def create_app(
     def retrieve(question: str, top_k: int, request: Request) -> list[dict]:
         storage = request.app.state.store
         if hasattr(storage, "search_chunks"):
-            return storage.search_chunks(question, top_k)
-        return request.app.state.retriever.search(question, storage.list_chunks(), top_k)
+            results = storage.search_chunks(question, top_k)
+        else:
+            results = request.app.state.retriever.search(question, storage.list_chunks(), top_k)
+        threshold = request.app.state.settings.min_relevance_score
+        return [item for item in results if item["score"] >= threshold]
 
     @api.get("/", tags=["service"])
     def root() -> dict[str, str]:
@@ -112,6 +115,19 @@ def create_app(
     def ingest_documents_batch(
         payload: DocumentBatchIn, request: Request
     ) -> BatchIngestResponse:
+        current_settings = request.app.state.settings
+        for document in payload.documents:
+            if len(document.text) > current_settings.max_document_chars:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Document '{document.document_id}' exceeds the configured size limit.",
+                )
+            if not split_text(document.text, current_settings.chunk_size,
+                              current_settings.chunk_overlap):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Document '{document.document_id}' contains no indexable text.",
+                )
         results = [ingest_one(document, request) for document in payload.documents]
         return BatchIngestResponse(accepted=len(results), results=results)
 
@@ -137,10 +153,6 @@ def create_app(
             raise HTTPException(status_code=413, detail="Question exceeds the configured size limit.")
         top_k = min(payload.top_k or current_settings.default_top_k, current_settings.max_top_k)
         results = retrieve(payload.question, top_k, request)
-        results = [
-            item for item in results
-            if item["score"] >= current_settings.min_relevance_score
-        ]
         citations = [
             Citation(
                 chunk_id=item["chunk_id"], document_id=item["document_id"],
