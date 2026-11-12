@@ -146,7 +146,7 @@ class SQLiteStore:
                 """
                 SELECT c.chunk_id,c.document_id,c.chunk_index,c.text,
                        d.title,d.source,d.metadata_json,
-                       -bm25(chunks_fts, 0.0, 1.0) AS score
+                       1.0 / (1.0 + abs(bm25(chunks_fts, 0.0, 1.0))) AS score
                 FROM chunks_fts
                 JOIN chunks c ON c.chunk_id = chunks_fts.chunk_id
                 JOIN documents d ON d.document_id = c.document_id
