@@ -67,12 +67,23 @@ class WebhookDispatcher:
 
     def __init__(self, database_path: str = "data/relayforge.sqlite3") -> None:
         self.database_path = database_path
+        self._memory_uri = (
+            f"file:relayforge-{uuid4().hex}?mode=memory&cache=shared"
+            if database_path == ":memory:" else None
+        )
+        self._anchor = (
+            sqlite3.connect(self._memory_uri, uri=True, timeout=30)
+            if self._memory_uri else None
+        )
         if database_path != ":memory:":
             Path(database_path).expanduser().parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.database_path, timeout=30)
+        db = (
+            sqlite3.connect(self._memory_uri, uri=True, timeout=30)
+            if self._memory_uri else sqlite3.connect(self.database_path, timeout=30)
+        )
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=30000")
