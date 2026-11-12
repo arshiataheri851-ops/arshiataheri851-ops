@@ -113,3 +113,40 @@ def test_http_sender_rejects_non_allowlisted_host_before_network_access():
             raise AssertionError("unapproved hostname should be rejected")
     finally:
         sender.close()
+
+
+def test_dead_letter_can_be_redriven_by_operator():
+    app = create_app(sender=lambda *_: 503)
+    with TestClient(app) as client:
+        client.post("/subscriptions", json={
+            "subscription_id": "billing",
+            "event_type": "invoice.paid",
+            "url": "https://hooks.example.com/billing",
+            "secret": "s" * 32,
+        })
+        event = client.post("/events", json=payload("dead-letter-event")).json()
+        delivery_id = event["delivery_ids"][0]
+        failed = client.post(
+            f"/deliveries/{delivery_id}/dispatch?timestamp=1700000001&max_attempts=1"
+        )
+        assert failed.json()["status"] == "dead_letter"
+
+        redriven = client.post(f"/deliveries/{delivery_id}/redrive")
+        assert redriven.status_code == 200
+        assert redriven.json()["status"] == "queued"
+        assert redriven.json()["attempts"] == 0
+
+
+def test_non_dead_letter_delivery_cannot_be_redriven():
+    app = create_app(sender=lambda *_: 204)
+    with TestClient(app) as client:
+        client.post("/subscriptions", json={
+            "subscription_id": "billing",
+            "event_type": "invoice.paid",
+            "url": "https://hooks.example.com/billing",
+            "secret": "s" * 32,
+        })
+        event = client.post("/events", json=payload("queued-event")).json()
+        delivery_id = event["delivery_ids"][0]
+        response = client.post(f"/deliveries/{delivery_id}/redrive")
+        assert response.status_code == 409
