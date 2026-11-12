@@ -111,3 +111,27 @@ def test_api_key_must_be_long_enough() -> None:
     except ValueError:
         return
     raise AssertionError("Short API keys must be rejected.")
+
+
+def test_api_key_is_required_for_batch_prediction():
+    client = make_client(api_key=TEST_API_KEY)
+    payload = {"items": [{"text": "کیفیت عالی بود"}]}
+
+    missing = client.post("/v1/sentiment/batch", json=payload)
+    assert missing.status_code == 401
+
+    invalid = client.post(
+        "/v1/sentiment/batch",
+        headers={"X-API-Key": "wrong-secret"},
+        json=payload,
+    )
+    assert invalid.status_code == 401
+
+    valid = client.post(
+        "/v1/sentiment/batch",
+        headers={"X-API-Key": TEST_API_KEY},
+        json=payload,
+    )
+    assert valid.status_code == 200
+    assert valid.json()["count"] == 1
+    assert valid.json()["predictions"][0]["sentiment"] == "positive"
