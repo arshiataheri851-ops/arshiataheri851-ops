@@ -271,6 +271,25 @@ class WebhookDispatcher:
                 "SELECT COUNT(*) FROM deliveries WHERE status IN ('queued','retry','sending')"
             ).fetchone()[0])
 
+    def redrive_delivery(self, delivery_id: str) -> Delivery | None:
+        """Requeue a dead-letter delivery for an operator-approved new attempt cycle."""
+        now = time.time()
+        with self._connect() as db:
+            cursor = db.execute(
+                """
+                UPDATE deliveries SET status='queued',attempts=0,last_status_code=NULL,
+                    last_error=NULL,next_attempt_at=?,lease_until=0,updated_at=?
+                WHERE delivery_id=? AND status='dead_letter'
+                """,
+                (now, now, delivery_id),
+            )
+            if cursor.rowcount == 0:
+                row = db.execute(
+                    "SELECT * FROM deliveries WHERE delivery_id=?", (delivery_id,)
+                ).fetchone()
+                return self._delivery(row) if row else None
+        return self.get_delivery(delivery_id)
+
     def dispatch(
         self,
         delivery_id: str,
