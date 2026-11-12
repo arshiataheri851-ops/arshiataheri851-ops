@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.store import SQLiteStore
+from app.store import SQLiteStore  # noqa: E402
 
 
 def run_benchmark(document_count: int, query_count: int) -> dict:
