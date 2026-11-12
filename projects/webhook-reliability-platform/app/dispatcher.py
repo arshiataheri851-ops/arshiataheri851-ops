@@ -8,11 +8,11 @@ import json
 import random
 import sqlite3
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
-from collections.abc import Callable
 
 Sender = Callable[[str, str, dict[str, str]], int]
 
