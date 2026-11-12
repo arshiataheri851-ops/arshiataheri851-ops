@@ -4,6 +4,7 @@ import argparse
 import json
 import statistics
 import time
+import tempfile
 from pathlib import Path
 
 from app.store import SQLiteStore
@@ -13,7 +14,8 @@ def run_benchmark(document_count: int, query_count: int) -> dict:
     if document_count < query_count or query_count < 1:
         raise ValueError("document_count must be >= query_count >= 1")
 
-    store = SQLiteStore(":memory:")
+    temporary_directory = tempfile.TemporaryDirectory()
+    store = SQLiteStore(str(Path(temporary_directory.name) / "benchmark.sqlite3"))
     for index in range(document_count):
         anchor = f"atlasanchor{index:05d}"
         text = (
@@ -47,7 +49,7 @@ def run_benchmark(document_count: int, query_count: int) -> dict:
 
     ordered = sorted(latencies_ms)
     p95_index = min(len(ordered) - 1, max(0, int(0.95 * len(ordered)) - 1))
-    return {
+    report = {
         "benchmark_type": "synthetic_controlled_corpus",
         "warning": "Synthetic lexical benchmark; not a substitute for evaluation on representative customer documents and judged queries.",
         "documents": document_count,
@@ -58,6 +60,8 @@ def run_benchmark(document_count: int, query_count: int) -> dict:
         "latency_ms_p50": round(statistics.median(latencies_ms), 3),
         "latency_ms_p95": round(ordered[p95_index], 3),
     }
+    temporary_directory.cleanup()
+    return report
 
 
 def main() -> None:
