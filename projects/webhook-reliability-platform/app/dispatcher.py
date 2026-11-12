@@ -238,18 +238,27 @@ class WebhookDispatcher:
             row = db.execute("SELECT * FROM deliveries WHERE delivery_id=?", (delivery_id,)).fetchone()
         return self._delivery(row) if row else None
 
-    def list_deliveries(self, delivery_status: str | None = None) -> list[dict]:
+    def list_deliveries(
+        self, delivery_status: str | None = None, limit: int = 100
+    ) -> list[dict]:
         with self._connect() as db:
             if delivery_status:
                 rows = db.execute(
-                    "SELECT * FROM deliveries WHERE status=? ORDER BY created_at,delivery_id",
-                    (delivery_status,),
+                    "SELECT * FROM deliveries WHERE status=? ORDER BY created_at,delivery_id LIMIT ?",
+                    (delivery_status, limit),
                 ).fetchall()
             else:
                 rows = db.execute(
-                    "SELECT * FROM deliveries ORDER BY created_at,delivery_id"
+                    "SELECT * FROM deliveries ORDER BY created_at,delivery_id LIMIT ?",
+                    (limit,),
                 ).fetchall()
         return [asdict(self._delivery(row)) for row in rows]
+
+    def count_pending(self) -> int:
+        with self._connect() as db:
+            return int(db.execute(
+                "SELECT COUNT(*) FROM deliveries WHERE status IN ('queued','retry','sending')"
+            ).fetchone()[0])
 
     def dispatch(
         self,
@@ -298,7 +307,10 @@ class WebhookDispatcher:
                 (attempt_number, signature, now + lease_seconds, now, delivery_id),
             )
             if cursor.rowcount != 1:
-                return self.get_delivery(delivery_id)  # another worker won the claim
+                current = db.execute(
+                    "SELECT * FROM deliveries WHERE delivery_id=?", (delivery_id,)
+                ).fetchone()
+                return self._delivery(current)  # another worker won the claim
             db.execute(
                 """
                 INSERT INTO delivery_attempts(
