@@ -17,7 +17,7 @@ _LABEL_MAP = {
 
 
 class HuggingFaceSentimentPredictor:
-    """CPU-first model adapter with lazy loading and serialized initialization."""
+    """CPU-first adapter with lazy loading and bounded batched inference."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -33,12 +33,15 @@ class HuggingFaceSentimentPredictor:
             with self._load_lock:
                 if self._pipeline is None:
                     try:
+                        import torch
                         from transformers import pipeline
                     except ImportError as exc:
                         raise RuntimeError(
                             'Install model dependencies with: pip install -e ".[inference]"'
                         ) from exc
 
+                    # Avoid CPU thread oversubscription in small container instances.
+                    torch.set_num_threads(self.settings.cpu_threads)
                     self._pipeline = pipeline(
                         task="text-classification",
                         model=self.settings.model_id,
@@ -65,6 +68,7 @@ class HuggingFaceSentimentPredictor:
             top_k=None,
             truncation=True,
             max_length=self.settings.max_sequence_length,
+            batch_size=self.settings.inference_batch_size,
         )
 
         # Normalize the single-input shape returned by Transformers pipelines.
