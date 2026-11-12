@@ -1,17 +1,32 @@
+"""Lexical retrieval primitives with Persian/Arabic text normalization."""
+
 import math
 import re
+import unicodedata
 from collections import Counter
 from typing import Any
 
 _TOKEN_RE = re.compile(r"[\w\u0600-\u06FF]+", re.UNICODE)
+_TRANSLATION = str.maketrans({"ي": "ی", "ك": "ک", "ۀ": "ه", "ة": "ه"})
+
+
+def normalize_text(text: str) -> str:
+    """Normalize common Persian/Arabic variants before tokenization."""
+    normalized = unicodedata.normalize("NFKC", text).translate(_TRANSLATION)
+    normalized = normalized.replace("\u200c", " ").replace("\u200f", "")
+    normalized = "".join(
+        char for char in normalized
+        if unicodedata.category(char) != "Mn"
+    )
+    return normalized.casefold()
 
 
 def tokenize(text: str) -> list[str]:
-    return [token.casefold() for token in _TOKEN_RE.findall(text)]
+    return _TOKEN_RE.findall(normalize_text(text))
 
 
 class BM25Retriever:
-    """Dependency-light BM25 ranker over persisted text chunks."""
+    """In-memory BM25 reference ranker, useful for tests and offline evaluation."""
 
     def __init__(self, k1: float = 1.5, b: float = 0.75):
         self.k1 = k1
