@@ -189,6 +189,18 @@ def create_app(
             raise HTTPException(status_code=404, detail="Delivery not found.")
         return item.__dict__
 
+    @api.post("/deliveries/{delivery_id}/redrive", tags=["deliveries"])
+    def redrive_delivery(delivery_id: str) -> dict[str, Any]:
+        item = dispatcher.redrive_delivery(delivery_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="Delivery not found.")
+        if item.status != "queued":
+            raise HTTPException(
+                status_code=409,
+                detail="Only dead-letter deliveries can be redriven.",
+            )
+        return item.__dict__
+
     @api.post("/deliveries/{delivery_id}/dispatch", tags=["deliveries"])
     def dispatch_delivery(
         delivery_id: str,
