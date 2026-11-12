@@ -26,3 +26,10 @@ def test_index_backfills_existing_database(tmp_path):
     # Reopening the same file exercises the idempotent index initialization.
     reopened = SQLiteStore(path)
     assert reopened.search_chunks("legacyindexword", 1)[0]["document_id"] == "legacy"
+
+
+def test_fts_search_normalizes_arabic_persian_letter_variants(tmp_path):
+    store = SQLiteStore(str(tmp_path / "persian.sqlite3"))
+    store.upsert_document("arabic", "Arabic spelling", None, {}, ["متن عربي درباره كيان"])
+    result = store.search_chunks("متن فارسی درباره کیان", 3)
+    assert result[0]["document_id"] == "arabic"
