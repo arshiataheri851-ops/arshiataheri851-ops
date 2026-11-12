@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: farsipulse-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerContext: ./projects/persian-sentiment-api
+    dockerfilePath: ./projects/persian-sentiment-api/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: SENTIMENT_INFERENCE_BATCH_SIZE
+        value: "8"
+      - key: SENTIMENT_CPU_THREADS
+        value: "2"
+      - key: SENTIMENT_MAX_SEQUENCE_LENGTH
+        value: "512"
+      - key: HF_HOME
+        value: /home/app/.cache/huggingface
+    disk:
+      name: farsipulse-model-cache
+      mountPath: /home/app/.cache/huggingface
+      sizeGB: 5
