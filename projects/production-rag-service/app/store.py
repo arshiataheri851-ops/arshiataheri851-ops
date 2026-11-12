@@ -56,14 +56,14 @@ class SQLiteStore:
                     chunk_id UNINDEXED, text, tokenize='unicode61 remove_diacritics 2'
                 );
                 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
-                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, new.text);
+                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, replace(replace(replace(replace(new.text, 'ي', 'ی'), 'ك', 'ک'), 'ة', 'ه'), char(8204), ' '));
                 END;
                 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
                     DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
                 END;
                 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
                     DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
-                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, new.text);
+                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, replace(replace(replace(replace(new.text, 'ي', 'ی'), 'ك', 'ک'), 'ة', 'ه'), char(8204), ' '));
                 END;
                 """
             )
@@ -71,7 +71,7 @@ class SQLiteStore:
             db.execute(
                 """
                 INSERT INTO chunks_fts(chunk_id, text)
-                SELECT c.chunk_id, c.text FROM chunks c
+                SELECT c.chunk_id, replace(replace(replace(replace(c.text, 'ي', 'ی'), 'ك', 'ک'), 'ة', 'ه'), char(8204), ' ') FROM chunks c
                 WHERE NOT EXISTS (
                     SELECT 1 FROM chunks_fts f WHERE f.chunk_id = c.chunk_id
                 )
