@@ -6,6 +6,13 @@ from app.dispatcher import WebhookDispatcher
 from app.main import create_app
 from app.sender import HttpxWebhookSender
 
+PRODUCER_TOKEN = "p" * 40
+OPERATOR_TOKEN = "o" * 40
+AUTH_HEADERS = {
+    "X-RelayForge-API-Key": PRODUCER_TOKEN,
+    "X-RelayForge-Operator-Key": OPERATOR_TOKEN,
+}
+
 
 def payload(event_id="persisted-event"):
     return {
@@ -70,10 +77,12 @@ def test_background_worker_sends_and_persists_delivery(tmp_path):
         sender=sender,
         database_path=str(tmp_path / "worker.sqlite3"),
         enable_worker=True,
+        api_token=PRODUCER_TOKEN,
+        operator_token=OPERATOR_TOKEN,
         poll_interval_seconds=0.01,
         max_attempts=3,
     )
-    with TestClient(app) as client:
+    with TestClient(app, headers=AUTH_HEADERS) as client:
         assert client.post("/subscriptions", json={
             "subscription_id": "billing",
             "event_type": "invoice.paid",
@@ -116,8 +125,8 @@ def test_http_sender_rejects_non_allowlisted_host_before_network_access():
 
 
 def test_dead_letter_can_be_redriven_by_operator():
-    app = create_app(sender=lambda *_: 503)
-    with TestClient(app) as client:
+    app = create_app(sender=lambda *_: 503, api_token=PRODUCER_TOKEN, operator_token=OPERATOR_TOKEN)
+    with TestClient(app, headers=AUTH_HEADERS) as client:
         client.post("/subscriptions", json={
             "subscription_id": "billing",
             "event_type": "invoice.paid",
@@ -138,8 +147,8 @@ def test_dead_letter_can_be_redriven_by_operator():
 
 
 def test_non_dead_letter_delivery_cannot_be_redriven():
-    app = create_app(sender=lambda *_: 204)
-    with TestClient(app) as client:
+    app = create_app(sender=lambda *_: 204, api_token=PRODUCER_TOKEN, operator_token=OPERATOR_TOKEN)
+    with TestClient(app, headers=AUTH_HEADERS) as client:
         client.post("/subscriptions", json={
             "subscription_id": "billing",
             "event_type": "invoice.paid",
