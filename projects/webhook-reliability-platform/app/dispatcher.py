@@ -368,7 +368,8 @@ class WebhookDispatcher:
         return self.get_delivery(delivery_id)
 
     def dispatch_due(
-        self, sender: Sender, max_attempts: int = 5, limit: int = 50
+        self, sender: Sender, max_attempts: int = 5, limit: int = 50,
+        base_delay_seconds: float = 2.0,
     ) -> list[Delivery]:
         now = time.time()
         with self._connect() as db:
@@ -384,7 +385,10 @@ class WebhookDispatcher:
         results = []
         for row in rows:
             results.append(
-                self.dispatch(row["delivery_id"], sender, int(time.time()), max_attempts)
+                self.dispatch(
+                    row["delivery_id"], sender, int(time.time()), max_attempts,
+                    base_delay_seconds=base_delay_seconds,
+                )
             )
         return results
 
