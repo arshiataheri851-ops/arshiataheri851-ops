@@ -20,10 +20,21 @@ class DocumentIn(BaseModel):
         return value.strip()
 
 
+class DocumentBatchIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    documents: list[DocumentIn] = Field(min_length=1, max_length=100)
+
+
 class IngestResponse(BaseModel):
     document_id: str
     chunks_created: int
     replaced_existing: bool
+
+
+class BatchIngestResponse(BaseModel):
+    accepted: int
+    results: list[IngestResponse]
 
 
 class QueryIn(BaseModel):
