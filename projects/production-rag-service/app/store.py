@@ -1,13 +1,19 @@
-"""SQLite persistence for AtlasRAG documents and chunks."""
+"""SQLite persistence and indexed retrieval for AtlasRAG."""
 
 import json
 import sqlite3
 from pathlib import Path
 from typing import Any
 
+from .retrieval import tokenize
+
 
 class SQLiteStore:
-    """Small transactional SQLite store; each operation owns its connection."""
+    """Transactional SQLite store with a persistent FTS5 index.
+
+    Each operation owns its connection. WAL supports concurrent readers and a
+    serialized writer; this remains a single-node storage backend.
+    """
 
     def __init__(self, database_path: str):
         self.database_path = database_path
@@ -16,12 +22,14 @@ class SQLiteStore:
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path, timeout=15)
+        connection = sqlite3.connect(self.database_path, timeout=30)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
-        connection.execute("PRAGMA busy_timeout = 15000")
+        connection.execute("PRAGMA busy_timeout = 30000")
         if self.database_path != ":memory:":
             connection.execute("PRAGMA journal_mode = WAL")
+            connection.execute("PRAGMA synchronous = NORMAL")
+            connection.execute("PRAGMA cache_size = -20000")
         return connection
 
     def _initialize(self) -> None:
@@ -44,6 +52,29 @@ class SQLiteStore:
                     UNIQUE(document_id, chunk_index)
                 );
                 CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
+                CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                    chunk_id UNINDEXED, text, tokenize='unicode61 remove_diacritics 2'
+                );
+                CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, new.text);
+                END;
+                CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+                    DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
+                END;
+                CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
+                    DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
+                    INSERT INTO chunks_fts(chunk_id, text) VALUES (new.chunk_id, new.text);
+                END;
+                """
+            )
+            # Backfill databases created before FTS5 indexing was introduced.
+            db.execute(
+                """
+                INSERT INTO chunks_fts(chunk_id, text)
+                SELECT c.chunk_id, c.text FROM chunks c
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM chunks_fts f WHERE f.chunk_id = c.chunk_id
+                )
                 """
             )
 
@@ -64,24 +95,20 @@ class SQLiteStore:
                 INSERT INTO documents(document_id,title,source,metadata_json)
                 VALUES(?,?,?,?)
                 ON CONFLICT(document_id) DO UPDATE SET
-                    title=excluded.title,
-                    source=excluded.source,
-                    metadata_json=excluded.metadata_json,
-                    updated_at=CURRENT_TIMESTAMP
+                    title=excluded.title, source=excluded.source,
+                    metadata_json=excluded.metadata_json, updated_at=CURRENT_TIMESTAMP
                 """,
                 (document_id, title, source, json.dumps(metadata, ensure_ascii=False)),
             )
             db.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
             db.executemany(
                 "INSERT INTO chunks(chunk_id,document_id,chunk_index,text) VALUES(?,?,?,?)",
-                [
-                    (f"{document_id}:{index}", document_id, index, chunk)
-                    for index, chunk in enumerate(chunks)
-                ],
+                [(f"{document_id}:{i}", document_id, i, chunk)
+                 for i, chunk in enumerate(chunks)],
             )
         return existed
 
-    def list_documents(self) -> list[dict[str, Any]]:
+    def list_documents(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         with self._connect() as db:
             rows = db.execute(
                 """
@@ -90,7 +117,9 @@ class SQLiteStore:
                 FROM documents d LEFT JOIN chunks c USING(document_id)
                 GROUP BY d.document_id
                 ORDER BY d.updated_at DESC, d.document_id
-                """
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
             ).fetchall()
         return [dict(row) for row in rows]
 
@@ -104,6 +133,29 @@ class SQLiteStore:
                 ORDER BY c.document_id,c.chunk_index
                 """
             ).fetchall()
+        return [{**dict(row), "metadata": json.loads(row["metadata_json"])} for row in rows]
+
+    def search_chunks(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
+        """Retrieve only matching chunks from the persistent full-text index."""
+        terms = tokenize(query)
+        if not terms:
+            return []
+        match_query = " OR ".join('"'+term.replace('"', '""')+'"' for term in dict.fromkeys(terms))
+        with self._connect() as db:
+            rows = db.execute(
+                """
+                SELECT c.chunk_id,c.document_id,c.chunk_index,c.text,
+                       d.title,d.source,d.metadata_json,
+                       -bm25(chunks_fts, 0.0, 1.0) AS score
+                FROM chunks_fts
+                JOIN chunks c ON c.chunk_id = chunks_fts.chunk_id
+                JOIN documents d ON d.document_id = c.document_id
+                WHERE chunks_fts MATCH ?
+                ORDER BY bm25(chunks_fts, 0.0, 1.0), c.chunk_id
+                LIMIT ?
+                """,
+                (match_query, top_k),
+            ).fetchall()
         return [
             {**dict(row), "metadata": json.loads(row["metadata_json"])}
             for row in rows
@@ -111,11 +163,13 @@ class SQLiteStore:
 
     def delete_document(self, document_id: str) -> bool:
         with self._connect() as db:
-            cursor = db.execute(
-                "DELETE FROM documents WHERE document_id=?", (document_id,)
-            )
+            cursor = db.execute("DELETE FROM documents WHERE document_id=?", (document_id,))
             return cursor.rowcount > 0
 
     def count_documents(self) -> int:
         with self._connect() as db:
             return int(db.execute("SELECT COUNT(*) FROM documents").fetchone()[0])
+
+    def count_chunks(self) -> int:
+        with self._connect() as db:
+            return int(db.execute("SELECT COUNT(*) FROM chunks").fetchone()[0])
