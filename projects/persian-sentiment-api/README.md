@@ -1,8 +1,10 @@
 # FarsiPulse — Persian Sentiment Intelligence API
 
 [![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
+[![Real inference](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-real-inference.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-real-inference.yml)
+[![Model evaluation](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-evaluation.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-evaluation.yml)
 
-FarsiPulse is a typed REST service for binary Persian review sentiment inference. It combines conservative Persian normalization, FastAPI request validation, lazy Hugging Face model loading, batch inference, and reproducible evaluation hooks.
+FarsiPulse is a typed REST service for binary Persian review sentiment inference. It combines conservative Persian normalization, FastAPI request validation, lazy Hugging Face model loading, bounded batch inference, and reproducible evaluation.
 
 ## What is implemented
 
@@ -10,8 +12,10 @@ FarsiPulse is a typed REST service for binary Persian review sentiment inference
 - Pydantic request/response contracts and blank-input rejection.
 - Persian Arabic-letter normalization without stripping meaningful ZWNJ characters.
 - Lazy model initialization with thread-safe first load.
-- Pinned Hugging Face model revision; no model download is needed to run the API tests.
-- Docker image, health endpoint, evaluation script, and CI-ready tests.
+- Pinned Hugging Face model revision.
+- Configurable inference batch size and CPU thread count to limit memory use and CPU oversubscription.
+- Optional constant-time API-key validation for inference routes via `SENTIMENT_API_KEY`.
+- Non-root CPU-only Docker image, health endpoint, evaluation workflow, and automated tests.
 
 ## Architecture
 
@@ -19,13 +23,13 @@ FarsiPulse is a typed REST service for binary Persian review sentiment inference
 HTTP Client
     |
     v
-FastAPI Router + Pydantic Contracts
+FastAPI Router + API-key dependency + Pydantic Contracts
     |
     v
 Persian Text Normalizer
     |
     v
-Thread-safe Hugging Face Adapter (lazy load)
+Thread-safe Hugging Face Adapter (lazy load + bounded batches)
     |
     v
 Positive / Negative scores + model provenance
@@ -63,6 +67,8 @@ curl -X POST http://127.0.0.1:8000/v1/sentiment \
   -d '{"text":"کیفیت غذا عالی بود و خیلی راضی بودم"}'
 ```
 
+If `SENTIMENT_API_KEY` is configured, add `-H "X-API-Key: YOUR_SECRET"` to inference requests. The key is optional for local development but should be configured before exposing the service publicly. The health and service metadata endpoints remain public for platform health checks.
+
 Batch prediction:
 
 ```bash
@@ -80,6 +86,14 @@ curl -X POST http://127.0.0.1:8000/v1/sentiment/batch \
 
 The model returns a binary `positive` / `negative` label. Scores are raw model outputs, not calibrated probabilities or guarantees.
 
+## Performance controls
+
+- `SENTIMENT_INFERENCE_BATCH_SIZE`: transformer pipeline batch size (default 16; valid 1–32).
+- `SENTIMENT_CPU_THREADS`: PyTorch intra-op CPU thread count (default 2; valid 1–16).
+- `SENTIMENT_MAX_SEQUENCE_LENGTH`: tokenizer truncation limit (default 512).
+
+The Docker image uses one Uvicorn worker because each worker loads its own model copy. Tune these values only after measuring latency and peak memory on the target host. Reducing sequence length can change model quality and should be evaluated first.
+
 ## Tests and lint
 
 ```bash
@@ -88,25 +102,31 @@ pytest
 ruff check .
 ```
 
-Tests use a deterministic fake predictor and do not download model weights.
+Fast tests use a deterministic fake predictor and do not download model weights. A separate real-inference workflow downloads the pinned model and verifies single and batch API calls.
 
-## Evaluation
+## Reproducible evaluation
 
 ```bash
-python -m pip install -e ".[inference,evaluation]"
-python scripts/evaluate.py
+python -m pip install -e ".[inference,evaluation,dev]"
+python scripts/evaluate.py --batch-size 8 --output artifacts/report.json
 ```
 
-The evaluation script uses pinned upstream model/data revisions and reports metrics locally. Do not publish performance claims without recording the exact model and dataset revisions, runtime versions, hardware, and test split.
+The script evaluates the pinned model on the upstream dataset's fixed `test.csv` split and records accuracy, balanced accuracy, per-class precision/recall/F1, confusion matrix, throughput, batch latency, and runtime provenance. The GitHub Actions evaluation workflow uploads an aggregate JSON report. It does not upload review text.
 
-## Docker
+This is an in-domain benchmark only, not proof of performance on other Persian domains, dialects, or live traffic. Do not advertise performance claims until the report has been inspected and independently reproduced on the intended deployment hardware.
+
+## Docker and deployment
 
 ```bash
 docker build -t farsipulse .
 docker run --rm -p 8000:8000 farsipulse
 ```
 
-The container fetches model weights on first inference. Mount a persistent Hugging Face cache for repeat runs.
+The container fetches model weights on first inference. Mount persistent storage at `HF_HOME` for repeat runs. The image runs as a non-root user, uses CPU-only PyTorch, and limits itself to one worker.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Render Blueprint, persistent model cache, API-key setup, and production release checklist. The included [render.yaml](../../render.yaml) is a deployment template; it does not create a live service automatically.
+
+Before public traffic, configure `SENTIMENT_API_KEY`, HTTPS, edge rate/concurrency limits, monitoring, retention/privacy policies, and an operational rollback process. API-key validation does not replace rate limiting or abuse controls.
 
 ## Model provenance and limitations
 
@@ -114,7 +134,7 @@ The container fetches model weights on first inference. Mount a persistent Huggi
 - Pinned revision: `8c5d0be5517c4bd5e26f785b1ad60b394a80de07`
 - The model is fine-tuned for SnappFood-style review polarity; other domains, dialects, sarcasm, and mixed sentiment may behave differently.
 - Binary classification only; no neutral class is implemented.
-- CPU inference may be slow.
+- CPU inference may be slow; cold-start model loading is slower than subsequent predictions.
 - Do not use predictions as the sole basis for consequential decisions about people.
 
 Application code is MIT-licensed. Model weights and datasets remain subject to their upstream terms.
