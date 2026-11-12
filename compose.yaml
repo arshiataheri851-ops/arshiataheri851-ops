@@ -28,9 +28,11 @@ services:
     build:
       context: ./projects/webhook-reliability-platform
     ports:
-      - "8003:8000"
+      - "127.0.0.1:8003:8000"
     environment:
       RELAYFORGE_DATABASE_PATH: /srv/app/data/relayforge.sqlite3
+      RELAYFORGE_API_TOKEN: ${RELAYFORGE_API_TOKEN:-}
+      RELAYFORGE_OPERATOR_TOKEN: ${RELAYFORGE_OPERATOR_TOKEN:-}
       RELAYFORGE_ALLOWED_HOSTS: ${RELAYFORGE_ALLOWED_HOSTS:-}
       RELAYFORGE_ENABLE_WORKER: ${RELAYFORGE_ENABLE_WORKER:-false}
       RELAYFORGE_MAX_ATTEMPTS: ${RELAYFORGE_MAX_ATTEMPTS:-5}
