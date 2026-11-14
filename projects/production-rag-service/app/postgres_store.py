@@ -163,24 +163,25 @@ class PostgresStore:
                     )
 
                 db.execute("DELETE FROM chunks WHERE document_id=%s", (document_id,))
-                db.executemany(
-                    """
-                    INSERT INTO chunks(
-                        chunk_id, document_id, chunk_index, text, search_text
-                    )
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    [
-                        (
-                            f"{document_id}:{index}",
-                            document_id,
-                            index,
-                            chunk,
-                            normalize_text(chunk),
+                with db.cursor() as cursor:
+                    cursor.executemany(
+                        """
+                        INSERT INTO chunks(
+                            chunk_id, document_id, chunk_index, text, search_text
                         )
-                        for index, chunk in enumerate(item["chunks"])
-                    ],
-                )
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        [
+                            (
+                                f"{document_id}:{index}",
+                                document_id,
+                                index,
+                                chunk,
+                                normalize_text(chunk),
+                            )
+                            for index, chunk in enumerate(item["chunks"])
+                        ],
+                    )
         return replaced
 
     def list_documents(
