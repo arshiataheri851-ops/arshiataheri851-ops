@@ -8,7 +8,12 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
-from app.embeddings import FastEmbedder
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.embeddings import FastEmbedder  # noqa: E402
 from app.postgres_store import _vector_literal
 
 
