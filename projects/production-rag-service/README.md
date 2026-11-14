@@ -53,6 +53,25 @@ uvicorn app.main:app --reload
 
 The database is created automatically at `./data/rag.sqlite3`. Override it with `RAG_DATABASE_PATH`. Open http://127.0.0.1:8000/docs.
 
+## Quick start with Docker Compose
+
+From the repository root:
+
+```bash
+docker compose up --build -d atlasrag
+docker compose ps atlasrag
+```
+
+The API is bound to `127.0.0.1:8002` and persists its SQLite database in the `atlasrag-data` named volume. Wait until the container health status is `healthy`, then run the end-to-end smoke check:
+
+```bash
+python projects/production-rag-service/scripts/smoke_test.py --base-url http://127.0.0.1:8002
+```
+
+Open `http://127.0.0.1:8002/docs` for the interactive API. Stop the service with `docker compose down`; the named volume remains. To remove demo data too, use `docker compose down -v`.
+
+The Compose setup is for local evaluation only. The API currently has no user authentication or tenant isolation; do not expose it to the public internet or load confidential customer documents.
+
 ## API workflow
 
 Create or replace one document:
