@@ -160,6 +160,39 @@ def test_http_sender_pins_connection_to_validated_dns_address(monkeypatch):
     assert observed["closed"] is True
 
 
+
+def test_pinned_connection_uses_numeric_socket_address_and_original_tls_hostname(monkeypatch):
+    observed = {}
+
+    class FakeSocket:
+        def close(self):
+            observed["closed"] = True
+
+    class FakeTLSContext:
+        def wrap_socket(self, raw_socket, server_hostname):
+            observed["raw_socket"] = raw_socket
+            observed["server_hostname"] = server_hostname
+            return FakeSocket()
+
+    raw_socket = object()
+
+    def fake_create_connection(address, timeout, source_address):
+        observed.update(address=address, timeout=timeout, source_address=source_address)
+        return raw_socket
+
+    monkeypatch.setattr(sender_module.socket, "create_connection", fake_create_connection)
+    connection = sender_module._PinnedHTTPSConnection(
+        "hooks.example.com", 443, "93.184.216.34", 5.0
+    )
+    connection._context = FakeTLSContext()
+    connection.connect()
+    connection.close()
+
+    assert observed["address"] == ("93.184.216.34", 443)
+    assert observed["server_hostname"] == "hooks.example.com"
+    assert observed["raw_socket"] is raw_socket
+    assert observed["closed"] is True
+
 def test_http_sender_rejects_mixed_public_and_private_dns_answers(monkeypatch):
     monkeypatch.setattr(sender_module.socket, "getaddrinfo", lambda *a, **k: [
         _dns_record("93.184.216.34"),
