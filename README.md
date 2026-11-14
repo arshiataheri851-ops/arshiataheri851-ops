@@ -102,6 +102,14 @@ A responsive sports retail storefront concept featuring product search, category
 
 
 
+## Product websites
+
+- [FarsiPulse website source](projects/persian-sentiment-api/site/index.html) — Persian sentiment intelligence.
+- [AtlasRAG website source](projects/production-rag-service/site/index.html) — evidence-first document retrieval.
+- [RelayForge website source](projects/webhook-reliability-platform/site/index.html) — reliable webhook delivery.
+
+Deployment notes and current publication status: [PRODUCT_SITES.md](PRODUCT_SITES.md).
+
 ## Additional engineering implementations
 
 ### 11. [Agent Workflow Orchestrator](projects/agent-workflow-orchestrator/README.md)
