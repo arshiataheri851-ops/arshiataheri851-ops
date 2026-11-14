@@ -17,6 +17,7 @@ pytestmark = pytest.mark.skipif(
 def postgres_store():
     store = PostgresStore(DATABASE_URL)
     yield store
+    store.close()
 
 
 def test_postgres_health_persian_fts_and_tenant_isolation(postgres_store):
