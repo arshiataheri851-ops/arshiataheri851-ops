@@ -107,24 +107,25 @@ def migrate(sqlite_path: str, database_url: str) -> dict[str, int]:
                     "WHERE document_id=? ORDER BY chunk_index",
                     (document["document_id"],),
                 ).fetchall()
-                destination.executemany(
-                    """
-                    INSERT INTO chunks(
-                        chunk_id, document_id, chunk_index, text, search_text
-                    )
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    [
-                        (
-                            chunk["chunk_id"],
-                            document["document_id"],
-                            chunk["chunk_index"],
-                            chunk["text"],
-                            normalize_text(chunk["text"]),
+                with destination.cursor() as cursor:
+                    cursor.executemany(
+                        """
+                        INSERT INTO chunks(
+                            chunk_id, document_id, chunk_index, text, search_text
                         )
-                        for chunk in chunks
-                    ],
-                )
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        [
+                            (
+                                chunk["chunk_id"],
+                                document["document_id"],
+                                chunk["chunk_index"],
+                                chunk["text"],
+                                normalize_text(chunk["text"]),
+                            )
+                            for chunk in chunks
+                        ],
+                    )
                 document_count += 1
                 chunk_count += len(chunks)
     finally:
