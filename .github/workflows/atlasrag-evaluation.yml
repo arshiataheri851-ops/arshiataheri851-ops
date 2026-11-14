@@ -91,4 +91,7 @@ jobs:
         run: python projects/production-rag-service/scripts/smoke_test.py --base-url http://127.0.0.1:8002
       - name: Stop demo stack
         if: always()
+        env:
+          ATLASRAG_DB_PASSWORD: atlasrag-ci-compose-password
+          ATLASRAG_TENANT_API_KEYS_JSON: '{"ci":"ci-only-atlasrag-tenant-key-0123456789"}'
         run: docker compose down -v
