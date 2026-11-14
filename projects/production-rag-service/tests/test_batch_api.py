@@ -20,3 +20,11 @@ def test_batch_ingestion_and_document_pagination(client):
 def test_batch_limit_is_validated(client):
     response = client.post("/v1/documents/batch", json={"documents": []})
     assert response.status_code == 422
+
+
+def test_batch_rejects_duplicate_document_ids(client):
+    response = client.post("/v1/documents/batch", json={"documents": [
+        {"document_id": "duplicate", "title": "First", "text": "First document text."},
+        {"document_id": "duplicate", "title": "Second", "text": "Second document text."},
+    ]})
+    assert response.status_code == 422
