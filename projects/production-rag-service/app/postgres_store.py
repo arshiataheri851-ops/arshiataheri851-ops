@@ -271,6 +271,16 @@ class PostgresStore:
             )
             return cursor.rowcount > 0
 
+    def delete_documents(self, document_ids: list[str], tenant_id: str = "default") -> int:
+        if not document_ids:
+            return 0
+        with self._connect() as db:
+            cursor = db.execute(
+                "DELETE FROM documents WHERE tenant_id=%s AND document_id = ANY(%s)",
+                (tenant_id, document_ids),
+            )
+            return cursor.rowcount
+
     def count_documents(self, tenant_id: str = "default") -> int:
         with self._connect() as db:
             return int(
