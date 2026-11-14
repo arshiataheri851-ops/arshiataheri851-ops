@@ -53,10 +53,10 @@ services:
       RAG_METRICS_TOKEN: ${ATLASRAG_METRICS_TOKEN:-}
       RAG_SEMANTIC_ENABLED: "true"
       RAG_EMBEDDING_MODEL_NAME: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-      RAG_EMBEDDING_CACHE_DIR: /home/app/.cache/fastembed
+      RAG_EMBEDDING_CACHE_DIR: /srv/app/.cache/fastembed
     volumes:
       - ./migration:/srv/app/migration:ro
-      - atlasrag-model-cache:/home/app/.cache/fastembed
+      - atlasrag-model-cache:/srv/app/.cache/fastembed
     depends_on:
       atlasrag-db:
         condition: service_healthy
