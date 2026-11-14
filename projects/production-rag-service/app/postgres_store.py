@@ -17,7 +17,7 @@ def _vector_literal(values: list[float] | None) -> str | None:
         return None
     if len(values) != 384:
         raise ValueError("AtlasRAG embeddings must contain exactly 384 dimensions.")
-    return "[" + ",".join(f"{float(value):.8f}" for value in values) + "]
+    return "[" + ",".join(f"{float(value):.8f}" for value in values) + "]"
 
 
 class PostgresStore:
