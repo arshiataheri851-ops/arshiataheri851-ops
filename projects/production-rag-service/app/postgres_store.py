@@ -7,6 +7,7 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
+from psycopg_pool import ConnectionPool
 
 from .retrieval import normalize_text, tokenize
 from .store import TenantDocumentConflict
@@ -22,15 +23,26 @@ class PostgresStore:
             raise ValueError("AtlasRAG DATABASE_URL must use the PostgreSQL scheme.")
         self.database_url = database_url
         self.connect_timeout = connect_timeout
-        self._initialize()
-
-    def _connect(self) -> psycopg.Connection:
-        return psycopg.connect(
-            self.database_url,
-            connect_timeout=self.connect_timeout,
-            row_factory=dict_row,
-            application_name="atlasrag",
+        self.pool = ConnectionPool(
+            conninfo=database_url,
+            min_size=1,
+            max_size=10,
+            timeout=connect_timeout,
+            kwargs={"row_factory": dict_row, "application_name": "atlasrag"},
+            open=False,
         )
+        self.pool.open(wait=True)
+        try:
+            self._initialize()
+        except Exception:
+            self.pool.close()
+            raise
+
+    def _connect(self):
+        return self.pool.connection()
+
+    def close(self) -> None:
+        self.pool.close()
 
     def _initialize(self) -> None:
         with self._connect() as db:
