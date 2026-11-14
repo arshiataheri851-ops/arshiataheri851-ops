@@ -26,7 +26,6 @@ AUDIT_LOGGER = logging.getLogger("atlasrag.audit")
 AUDIT_LOGGER.setLevel(logging.INFO)
 if not AUDIT_LOGGER.handlers:
     AUDIT_LOGGER.addHandler(logging.StreamHandler())
-    AUDIT_LOGGER.propagate = False
 
 
 def instrument_api(api: FastAPI) -> None:
