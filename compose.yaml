@@ -5,8 +5,10 @@ services:
     build:
       context: ./projects/persian-sentiment-api
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     environment:
+      SENTIMENT_API_KEY: ${SENTIMENT_API_KEY:-}
+      SENTIMENT_REQUIRE_API_KEY: "true"
       SENTIMENT_MAX_SEQUENCE_LENGTH: "512"
       HF_HOME: /home/app/.cache/huggingface
     volumes:
@@ -17,11 +19,17 @@ services:
     build:
       context: ./projects/production-rag-service
     ports:
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
     environment:
       RAG_DATABASE_PATH: /srv/app/data/atlasrag.sqlite3
     volumes:
       - atlasrag-data:/srv/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   relayforge:
