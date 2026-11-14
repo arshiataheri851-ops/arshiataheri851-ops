@@ -15,6 +15,25 @@ class FastEmbedder:
     ) -> None:
         from fastembed import TextEmbedding
 
+        # FastEmbed does not include multilingual-e5-small in its built-in
+        # registry. Register its published ONNX artifact as a 384-dim model
+        # before constructing the embedder; avoid duplicate registration.
+        if model_name == "intfloat/multilingual-e5-small":
+            supported = {
+                item["model"] for item in TextEmbedding.list_supported_models()
+            }
+            if model_name not in supported:
+                from fastembed.common.model_description import ModelSource, PoolingType
+
+                TextEmbedding.add_custom_model(
+                    model=model_name,
+                    pooling=PoolingType.MEAN,
+                    normalization=True,
+                    sources=ModelSource(hf=model_name),
+                    dim=384,
+                    model_file="onnx/model.onnx",
+                )
+
         kwargs = {"model_name": model_name}
         if cache_dir:
             kwargs["cache_dir"] = cache_dir
