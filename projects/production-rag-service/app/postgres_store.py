@@ -345,8 +345,9 @@ class PostgresStore:
         for ranked in (lexical, semantic):
             for rank, item in enumerate(ranked, start=1):
                 chunk_id = item["chunk_id"]
-                current = fused.setdefault(chunk_id, dict(item))
-                current["score"] = current.get("score", 0.0) + 100.0 / (RRF_K + rank)
+                if chunk_id not in fused:
+                    fused[chunk_id] = {**item, "score": 0.0}
+                fused[chunk_id]["score"] += 100.0 / (RRF_K + rank)
         return sorted(
             fused.values(), key=lambda item: (-item["score"], item["chunk_id"])
         )[:top_k]
