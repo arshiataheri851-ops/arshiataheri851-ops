@@ -1,0 +1,12 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      ROUTEPILOT_DB: /data/routepilot.db
+      ROUTEPILOT_CORS_ORIGINS: ${ROUTEPILOT_CORS_ORIGINS:-http://localhost:3000}
+    volumes:
+      - routepilot_data:/data
+volumes:
+  routepilot_data:
