@@ -1,0 +1,12 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      SIGNALDESK_DB: /data/signaldesk.db
+      SIGNALDESK_CORS_ORIGINS: ${SIGNALDESK_CORS_ORIGINS:-http://localhost:3000}
+    volumes:
+      - signaldesk_data:/data
+volumes:
+  signaldesk_data:
