@@ -5,8 +5,10 @@ services:
     build:
       context: ./projects/persian-sentiment-api
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     environment:
+      SENTIMENT_API_KEY: ${SENTIMENT_API_KEY:-}
+      SENTIMENT_REQUIRE_API_KEY: "true"
       SENTIMENT_MAX_SEQUENCE_LENGTH: "512"
       HF_HOME: /home/app/.cache/huggingface
     volumes:
@@ -34,9 +36,20 @@ services:
     build:
       context: ./projects/webhook-reliability-platform
     ports:
-      - "8003:8000"
+      - "127.0.0.1:8003:8000"
+    environment:
+      RELAYFORGE_DATABASE_PATH: /srv/app/data/relayforge.sqlite3
+      RELAYFORGE_API_TOKEN: ${RELAYFORGE_API_TOKEN:-}
+      RELAYFORGE_OPERATOR_TOKEN: ${RELAYFORGE_OPERATOR_TOKEN:-}
+      RELAYFORGE_ALLOWED_HOSTS: ${RELAYFORGE_ALLOWED_HOSTS:-}
+      RELAYFORGE_ENABLE_WORKER: ${RELAYFORGE_ENABLE_WORKER:-false}
+      RELAYFORGE_MAX_ATTEMPTS: ${RELAYFORGE_MAX_ATTEMPTS:-5}
+      RELAYFORGE_RETRY_BASE_DELAY_SECONDS: ${RELAYFORGE_RETRY_BASE_DELAY_SECONDS:-2}
+    volumes:
+      - relayforge-data:/srv/app/data
     restart: unless-stopped
 
 volumes:
   farsipulse-model-cache:
   atlasrag-data:
+  relayforge-data:
