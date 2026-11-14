@@ -1,10 +1,13 @@
 import os
+import subprocess
+import sys
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
 from app.postgres_store import PostgresStore
-from app.store import TenantDocumentConflict
+from app.store import SQLiteStore, TenantDocumentConflict
 
 DATABASE_URL = os.getenv("RAG_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -88,3 +91,40 @@ def test_postgres_batch_is_atomic_on_cross_tenant_collision(postgres_store):
     finally:
         postgres_store.delete_document(foreign_id, tenant_id=owner)
         postgres_store.delete_document(new_id, tenant_id=attacker)
+
+
+def test_sqlite_migration_preserves_tenant_documents_and_search(postgres_store, tmp_path):
+    suffix = uuid4().hex
+    tenant_id = f"migrated_{suffix}"
+    document_id = f"migrated-doc-{suffix}"
+    sqlite_path = tmp_path / "legacy.sqlite3"
+    source = SQLiteStore(str(sqlite_path))
+    source.upsert_document(
+        document_id,
+        "Migrated Persian policy",
+        "archive://legacy",
+        {"origin": "sqlite"},
+        ["مهاجرت داده قدیمی و بازیابی اطلاعات با جست‌وجوی ایندکس‌شده."],
+        tenant_id=tenant_id,
+    )
+
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "migrate_sqlite_to_postgres.py"
+    environment = {**os.environ, "RAG_DATABASE_URL": DATABASE_URL}
+    subprocess.run(
+        [sys.executable, str(script_path), "--sqlite-path", str(sqlite_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    try:
+        rows = postgres_store.search_chunks(
+            "مهاجرت داده بازیابی", 5, tenant_id=tenant_id
+        )
+        assert rows
+        assert rows[0]["document_id"] == document_id
+        assert rows[0]["metadata"] == {"origin": "sqlite"}
+        assert postgres_store.count_documents(tenant_id) == 1
+    finally:
+        postgres_store.delete_document(document_id, tenant_id=tenant_id)
