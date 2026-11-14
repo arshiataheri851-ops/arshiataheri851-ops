@@ -1,6 +1,7 @@
 # Include this file inside Nginx's http {} context.
 # Replace the example hostnames and certificate paths after DNS is configured.
 # All upstreams remain private loopback listeners from compose.yaml.
+# Run Nginx on the Docker host itself; 127.0.0.1 is not the host from a container.
 
 limit_req_zone $binary_remote_addr zone=atlasrag_rate:10m rate=5r/s;
 limit_req_zone $binary_remote_addr zone=farsipulse_rate:10m rate=2r/s;
