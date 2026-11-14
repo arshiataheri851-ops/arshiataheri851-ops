@@ -115,6 +115,12 @@ The script evaluates the pinned model on the upstream dataset's fixed `test.csv`
 
 This is an in-domain benchmark only, not proof of performance on other Persian domains, dialects, or live traffic. Do not advertise performance claims until the report has been inspected and independently reproduced on the intended deployment hardware.
 
+## Latest verified model evaluation
+
+The fixed SnappFood test-split evaluation completed on 2026-11-12 with **93.32% accuracy**, **93.31% balanced accuracy**, and **93.32% macro F1** across 9,033 examples. This is an in-domain baseline, not a general Persian sentiment guarantee. See [MODEL_EVALUATION.md](MODEL_EVALUATION.md) for per-class metrics, confusion matrix, runtime measurements, and the release decision.
+
+The current result supports a private staging deployment or a limited monitored pilot after the operational controls below are configured. It does not approve unrestricted public traffic or external performance/SLA claims.
+
 ## Docker and deployment
 
 ```bash
