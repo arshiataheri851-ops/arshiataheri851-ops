@@ -11,6 +11,7 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 
 RUN useradd --system --create-home appuser \
+    && mkdir -p /srv/app/data \
     && chown -R appuser:appuser /srv/app
 
 USER appuser
