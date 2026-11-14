@@ -14,7 +14,7 @@ FarsiPulse is a typed REST service for binary Persian review sentiment inference
 - Lazy model initialization with thread-safe first load.
 - Pinned Hugging Face model revision.
 - Configurable inference batch size and CPU thread count to limit memory use and CPU oversubscription.
-- Optional constant-time API-key validation for inference routes via `SENTIMENT_API_KEY`.
+- Constant-time API-key validation for inference routes; protected deployments can require the key at startup with `SENTIMENT_REQUIRE_API_KEY=true`.
 - Non-root CPU-only Docker image, health endpoint, evaluation workflow, and automated tests.
 
 ## Architecture
@@ -67,7 +67,7 @@ curl -X POST http://127.0.0.1:8000/v1/sentiment \
   -d '{"text":"کیفیت غذا عالی بود و خیلی راضی بودم"}'
 ```
 
-If `SENTIMENT_API_KEY` is configured, add `-H "X-API-Key: YOUR_SECRET"` to inference requests. The key is optional for local development but should be configured before exposing the service publicly. The health and service metadata endpoints remain public for platform health checks.
+If `SENTIMENT_API_KEY` is configured, add `-H "X-API-Key: YOUR_SECRET"` to inference requests. Local development may leave the key optional. Set `SENTIMENT_REQUIRE_API_KEY=true` for protected deployments; the service then refuses to start if a valid key is missing. Health and service metadata endpoints remain public for platform health checks.
 
 Batch prediction:
 
@@ -132,7 +132,7 @@ The container fetches model weights on first inference. Mount persistent storage
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the Render Blueprint, persistent model cache, API-key setup, and production release checklist. The included [render.yaml](../../render.yaml) is a deployment template; it does not create a live service automatically.
 
-Before public traffic, configure `SENTIMENT_API_KEY`, HTTPS, edge rate/concurrency limits, monitoring, retention/privacy policies, and an operational rollback process. API-key validation does not replace rate limiting or abuse controls.
+Before public traffic, configure a strong `SENTIMENT_API_KEY` and `SENTIMENT_REQUIRE_API_KEY=true`, HTTPS, edge rate/concurrency limits, monitoring, retention/privacy policies, and an operational rollback process. The Render Blueprint enables fail-closed key enforcement; deployment must supply the secret. API-key validation does not replace rate limiting or abuse controls.
 
 ## Model provenance and limitations
 
