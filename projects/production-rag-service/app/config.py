@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     auth_required: bool = True
     tenant_api_keys_json: str = ""
     metrics_token: str = ""
+    semantic_search_enabled: bool = False
+    embedding_model: str = "intfloat/multilingual-e5-small"
+    embedding_cache_dir: str = "/home/app/.cache/fastembed"
     chunk_size: int = Field(default=700, ge=50, le=5_000)
     chunk_overlap: int = Field(default=100, ge=0, le=4_999)
     max_document_chars: int = Field(default=100_000, ge=1_000, le=1_000_000)
