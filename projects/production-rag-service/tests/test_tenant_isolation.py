@@ -13,7 +13,7 @@ def test_all_protected_routes_reject_missing_and_invalid_api_keys(client):
     assert client.post(
         "/v1/documents", json={"document_id": "x", "title": "X", "text": "test"}, headers=bad_key
     ).status_code == 401
-    assert client.post("/v1/documents/batch", json={"documents": []}, headers=no_key).status_code == 401
+    assert client.post("/v1/documents/batch", json={"documents": [{"document_id": "x", "title": "X", "text": "test"}]}, headers=no_key).status_code == 401
     assert client.delete("/v1/documents/x", headers=no_key).status_code == 401
     assert client.post(
         "/v1/query", json={"question": "private content"}, headers=bad_key
