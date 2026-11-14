@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     database_path: str = "./data/rag.sqlite3"  # SQLite fallback for tests and local-only development.
     auth_required: bool = True
     tenant_api_keys_json: str = ""
+    metrics_token: str = ""
     chunk_size: int = Field(default=700, ge=50, le=5_000)
     chunk_overlap: int = Field(default=100, ge=0, le=4_999)
     max_document_chars: int = Field(default=100_000, ge=1_000, le=1_000_000)
@@ -51,6 +52,12 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"API key for tenant '{tenant_id}' must be 32-256 ASCII characters without whitespace"
                 )
+        if self.metrics_token and (
+            not 32 <= len(self.metrics_token) <= 256
+            or not self.metrics_token.isascii()
+            or any(character.isspace() for character in self.metrics_token)
+        ):
+            raise ValueError("metrics_token must be 32-256 ASCII characters without whitespace")
         if len(set(keys.values())) != len(keys):
             raise ValueError("Each tenant must have a unique API key")
         if self.auth_required and not keys:
