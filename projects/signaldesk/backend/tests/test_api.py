@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, db
 
 client = TestClient(app)
 
@@ -77,3 +77,8 @@ def test_readiness_checks_database():
     response = client.get("/ready")
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
+
+
+def test_database_enforces_ticket_event_foreign_keys():
+    with db() as connection:
+        assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
