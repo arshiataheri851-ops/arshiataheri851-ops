@@ -39,6 +39,7 @@ def test_tenants_cannot_read_search_replace_or_delete_each_others_documents(clie
 def test_auth_required_configuration_fails_closed_without_tenant_keys():
     import pytest
     from pydantic import ValidationError
+    from app.config import Settings
 
     with pytest.raises(ValidationError):
         Settings(auth_required=True, tenant_api_keys_json="")
