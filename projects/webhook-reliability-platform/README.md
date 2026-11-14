@@ -55,6 +55,12 @@ Producer routes use `X-RelayForge-API-Key`; subscription and delivery administra
 
 SQLite WAL is a durable single-node store, not a distributed queue. Multi-node deployments require a shared PostgreSQL outbox/lease store and coordinated workers. Dead-letter review, monitoring/alerts, backup/restore drills, and retention policies remain operational responsibilities.
 
+## Shared local Docker Compose stack
+
+From the repository root, copy `.env.example` to `.env`, generate independent random secrets of at least 32 characters for FarsiPulse, RelayForge producer access, and RelayForge operator access, and set the exact webhook receiver hostnames in `RELAYFORGE_ALLOWED_HOSTS`. Do not commit `.env`.
+
+All three demo ports bind to loopback only: FarsiPulse `127.0.0.1:8001`, AtlasRAG `127.0.0.1:8002`, and RelayForge `127.0.0.1:8003`. FarsiPulse refuses to start without its API key in this Compose profile. AtlasRAG remains a local-only demo without authentication or tenant isolation. RelayForge protected routes fail closed until its two independent tokens are configured.
+
 ## Tests
 
 ```bash
