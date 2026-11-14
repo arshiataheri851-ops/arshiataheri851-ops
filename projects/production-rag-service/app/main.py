@@ -72,6 +72,9 @@ def create_app(
     api.state.store = database
     api.state.retriever = ranker
     instrument_api(api)
+    close_database = getattr(database, "close", None)
+    if close_database:
+        api.add_event_handler("shutdown", close_database)
 
     def ingest_one(payload: DocumentIn, request: Request, tenant_id: str) -> IngestResponse:
         current_settings = request.app.state.settings
