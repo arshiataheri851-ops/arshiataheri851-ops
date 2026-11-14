@@ -23,6 +23,7 @@ HTTP_LATENCY = Histogram(
     registry=REGISTRY,
 )
 AUDIT_LOGGER = logging.getLogger("atlasrag.audit")
+AUDIT_LOGGER.setLevel(logging.INFO)
 
 
 def instrument_api(api: FastAPI) -> None:
