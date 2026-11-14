@@ -46,3 +46,15 @@ def test_auth_required_configuration_fails_closed_without_tenant_keys():
 
     with pytest.raises(ValidationError):
         Settings(auth_required=True, tenant_api_keys_json="")
+
+
+def test_tenant_api_keys_must_be_strong_unique_ascii_values():
+    weak = '{"tenant-a":"too-short"}'
+    duplicate = (
+        '{"tenant-a":"same-secret-value-that-is-at-least-32-chars",'
+        '"tenant-b":"same-secret-value-that-is-at-least-32-chars"}'
+    )
+    non_ascii = '{"tenant-a":"کلید-این-کلید-باید-طولانی-باشد-برای-تست"}'
+    for mapping in (weak, duplicate, non_ascii):
+        with pytest.raises(ValidationError):
+            Settings(auth_required=True, tenant_api_keys_json=mapping)
