@@ -2,55 +2,24 @@
 
 [![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 
-RelayForge accepts events, routes them to subscriptions, signs canonical payloads with HMAC-SHA256, and delivers them through an allowlisted HTTP transport. Events and delivery state are persisted in SQLite using a transactional outbox.
+RelayForge accepts events, routes them to subscriptions, signs canonical payloads with HMAC-SHA256, and delivers them through an allowlisted HTTPS transport. Events and delivery state are persisted in SQLite using a transactional outbox.
 
 ## Implemented capabilities
 
 - Durable event and subscription storage in SQLite; state survives process restarts.
-- Transactional event idempotency: same event ID and content returns the original delivery IDs; conflicting content is rejected.
-- Transactional outbox records for every matching subscription.
-- Real HTTPX webhook sender with TLS verification, explicit hostname allowlist, bounded timeout, no environment proxy inheritance, and redirects disabled.
+- Transactional event idempotency and outbox creation.
+- Exact-host allowlisting and DNS-pinned TCP connections.
+- Every DNS answer is checked; mixed public/private answers are rejected.
+- The TCP socket connects to the validated numeric IP, so the HTTP layer cannot perform a second hostname lookup.
+- TLS SNI and certificate hostname verification continue to use the original allowlisted hostname.
+- HTTPS only, port 443 only, redirects disabled, bounded connection/read timeout, and no environment proxy inheritance.
 - HMAC-SHA256 signatures with timestamp and stable delivery ID headers.
-- Automatic background worker, when explicitly enabled and configured with an outbound allowlist.
-- Exponential retry backoff with jitter, attempt limits, delivery attempt history, and dead-letter state.
-- Atomic worker claims with leases; expired sending leases become eligible for recovery after a worker crash.
-- Bounded delivery listing, per-delivery status inspection, and operator-controlled dead-letter redrive.
-- Payload limits, HTTPS-only subscriptions, and secret omission from subscription-list responses.
+- Optional background worker, exponential retry backoff, leases, attempt history, and dead-letter redrive.
+- Separate producer and operator authentication tokens; protected routes fail closed when tokens are missing or too short.
 
 ## Delivery semantics
 
-RelayForge provides **at-least-once delivery attempts**, not universal exactly-once delivery.
-
-A process may crash after the receiver accepts a webhook but before RelayForge records the acknowledgement. In that case, the expired lease is retried and the receiver may see the same delivery again. The X-Webhook-Delivery value is stable across attempts; receivers should store it as an idempotency key and return success for duplicates.
-
-A 2xx response marks a delivery as delivered. Non-2xx responses and transport exceptions schedule another attempt using exponential backoff and jitter. Once the configured attempt limit is reached, the delivery enters dead_letter for inspection and manual resolution.
-
-## Architecture
-
-```text
-Event Producer
-     |
-     v
-FastAPI + Request Validation
-     |
-     v
-SQLite Transaction (event + delivery outbox)
-     |
-     v
-Background Worker / Manual Dispatch
-     |
-     v
-Atomic Claim + Lease + Attempt Record
-     |
-     v
-Allowlisted HTTPX Sender + HMAC Headers
-     |
-     +---- 2xx ----> DELIVERED
-     |
-     +---- failure -> BACKOFF -> RETRY
-                              |
-                              +---- max attempts -> DEAD LETTER
-```
+RelayForge provides **at-least-once delivery attempts**, not exactly-once delivery. A crash after remote acceptance but before local acknowledgement can produce a duplicate. Receivers should deduplicate by the stable `X-Webhook-Delivery` header.
 
 ## Run locally
 
@@ -63,67 +32,28 @@ python -m venv .venv
 python -m pip install -r requirements-dev.txt
 ```
 
-For a real sender, configure the allowed receiver hostnames before starting the service:
+For real delivery, configure an exact hostname allowlist and two independent secrets (each at least 32 random characters):
 
-```bash
-# PowerShell
+```powershell
 $env:RELAYFORGE_ALLOWED_HOSTS = "hooks.example.com"
-$env:RELAYFORGE_API_TOKEN = "<at-least-32-random-characters>"
-$env:RELAYFORGE_OPERATOR_TOKEN = "<a-different-at-least-32-random-characters>"
+$env:RELAYFORGE_API_TOKEN = "<producer-secret>"
+$env:RELAYFORGE_OPERATOR_TOKEN = "<different-operator-secret>"
 $env:RELAYFORGE_ENABLE_WORKER = "true"
 $env:RELAYFORGE_DATABASE_PATH = "data/relayforge.sqlite3"
-
-# macOS/Linux
-export RELAYFORGE_ALLOWED_HOSTS="hooks.example.com"
-export RELAYFORGE_API_TOKEN="<at-least-32-random-characters>"
-export RELAYFORGE_OPERATOR_TOKEN="<a-different-at-least-32-random-characters>"
-export RELAYFORGE_ENABLE_WORKER="true"
-export RELAYFORGE_DATABASE_PATH="data/relayforge.sqlite3"
-
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The allowlist is exact-host matching; do not use broad wildcards. The sender rejects non-HTTPS URLs, non-allowlisted hostnames, and DNS answers containing non-public IP addresses. It disables redirects and environment proxies and verifies TLS certificates. Network-level egress filtering is still required to defend against DNS rebinding and infrastructure-specific routing risks.
+Use port 443 for registered webhook destinations. Wildcards, IP-literal destinations, credentials in URLs, redirects, and non-public DNS answers are rejected.
 
-## API workflow
+## Security model and deployment requirements
 
-All write/read API routes require authentication. Event producers use `X-RelayForge-API-Key`; subscription and delivery administration uses the separate `X-RelayForge-Operator-Key`. Both secrets must be at least 32 characters. If either is missing or too short, its protected routes fail closed with HTTP 503. Keep the operator token restricted to trusted operators.
+The sender resolves the allowlisted hostname once per delivery, checks **all** A/AAAA answers, rejects the destination if any answer is non-public, and connects directly to one validated numeric address. TLS SNI and certificate validation remain bound to the allowlisted DNS hostname. This closes the application-level DNS-rebinding gap caused by validating one DNS lookup and then allowing the HTTP client to resolve the hostname again.
 
-Register a subscription (operator token):
+Network egress policy remains necessary as defense in depth. In production, permit outbound TCP only to the approved receiver addresses/ports where practical, keep the API behind authenticated HTTPS ingress, and do not accept arbitrary user-controlled callback URLs. The service is not independently security-audited.
 
-```bash
-curl -X POST http://127.0.0.1:8000/subscriptions \
-  -H "Content-Type: application/json" \
-  -d '{"subscription_id":"orders","event_type":"order.created","url":"https://hooks.example.com/orders","secret":"replace-with-a-long-random-secret"}'
-```
+Producer routes use `X-RelayForge-API-Key`; subscription and delivery administration uses `X-RelayForge-Operator-Key`. The operator token grants administrative access and must be restricted to trusted operators. Store signing secrets and API tokens in a secret manager, not in source control.
 
-Submit an event (producer token):
-
-```bash
-curl -X POST http://127.0.0.1:8000/events \
-  -H "Content-Type: application/json" \
-  -d '{"event_id":"evt-1001","event_type":"order.created","payload":{"order_id":1001},"timestamp":1700000000}'
-```
-
-Inspect deliveries: GET /deliveries?status=queued
-
-Inspect one delivery: GET /deliveries/{delivery_id}\n\nRequeue a dead-letter delivery after operator review: POST /deliveries/{delivery_id}/redrive
-
-When the background worker is enabled, queued deliveries and due retries are sent automatically. When it is disabled, an operator can dispatch an item manually using POST /deliveries/{delivery_id}/dispatch. Manual dispatch respects the scheduled retry time.
-
-## Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| RELAYFORGE_DATABASE_PATH | data/relayforge.sqlite3 in the service entrypoint | Persistent SQLite database path |
-| RELAYFORGE_ALLOWED_HOSTS | empty | Comma-separated exact hostnames permitted for outbound webhooks |
-| RELAYFORGE_API_TOKEN | empty | Producer API token; minimum 32 characters; protected routes fail closed if unset |
-| RELAYFORGE_OPERATOR_TOKEN | empty | Separate operator token for subscription and delivery administration; minimum 32 characters |
-| RELAYFORGE_ENABLE_WORKER | false | Enable automatic background dispatch |
-| RELAYFORGE_MAX_ATTEMPTS | 5 | Maximum attempts per delivery (1–10) |
-| RELAYFORGE_RETRY_BASE_DELAY_SECONDS | 2 | Base delay for exponential retry backoff |
-
-The Compose deployment mounts relayforge-data at /srv/app/data so SQLite state survives container replacement.
+SQLite WAL is a durable single-node store, not a distributed queue. Multi-node deployments require a shared PostgreSQL outbox/lease store and coordinated workers. Dead-letter review, monitoring/alerts, backup/restore drills, and retention policies remain operational responsibilities.
 
 ## Tests
 
@@ -133,17 +63,4 @@ ruff check app tests
 pytest -q
 ```
 
-Tests cover durable restart recovery, event idempotency, HMAC signing, retry/dead-letter transitions, automatic worker delivery, outbound hostname restrictions, and API validation.
-
-## Operational security and limitations
-
-- Treat subscription signing secrets as sensitive. SQLite stores them locally; use encrypted disks and restrict database/backup access. A production multi-tenant service should move secrets to a dedicated secret manager or encrypted column store.
-- Producer and operator routes enforce separate constant-time-checked bearer-style custom header tokens. The operator token grants administrative access; distribute it only to trusted operators. Keep the service behind authenticated ingress/API access controls as an additional boundary.
-- Maintain a strict outbound hostname allowlist and network egress policy. Do not accept arbitrary user-controlled callback destinations in an internet-facing deployment.
-- SQLite WAL is a durable single-node store, not a distributed queue. Do not run multiple independent replicas against separate local database files and assume shared state. For multi-node scale, move the outbox and leases to PostgreSQL and use a dedicated worker fleet.
-- Delivery is at-least-once. Exactly-once side effects require receiver-side idempotency and cannot be guaranteed by the sender alone.
-- Dead-letter deliveries block subscription removal until resolved; redrive also verifies the subscription still exists.
-- The Compose port binds to loopback only. Do not publish the service directly to the internet; place it behind authenticated ingress and network egress controls.
-- Dead-letter review, metrics/alerts, backup/restore drills, retention policy, and operational dashboards remain deployment responsibilities.
-
-This is a production-oriented reference implementation, not a claim that a public multi-tenant delivery platform has been deployed or independently security-audited.
+Tests cover persistence/recovery, retries, worker dispatch, authentication, hostname allowlisting, mixed public/private DNS rejection, pinned-address selection, and destination port restrictions.
