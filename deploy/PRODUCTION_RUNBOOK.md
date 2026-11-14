@@ -123,7 +123,7 @@ replaces the destination document content from the source snapshot. Do not
 rerun an old snapshot after new production writes have started unless that
 overwrite is intended.
 
-## 5. HTTPS, ingress authentication, and rate limits
+## 4.1 Enable and backfill semantic embeddings\n\nThe production Compose profile uses the multilingual\n`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` model through\nFastEmbed/ONNX Runtime. The model cache is persisted in the\n`atlasrag-model-cache` volume. PostgreSQL stores 384-dimensional vectors with\npgvector cosine distance and an HNSW index. New ingested chunks receive embeddings\nautomatically. For pre-existing chunks, run the backfill after enabling the\nsemantic environment variables:\n\n```bash\ndocker compose exec atlasrag python scripts/backfill_embeddings.py --batch-size 128\n```\n\nBackfill is repeatable: it only processes rows whose embedding is NULL. Keep\nAPI writes available; each update is committed in a bounded batch. Monitor CPU,\nRAM, model cache size, and database load while backfilling.\n\n## 5. HTTPS, ingress authentication, and rate limits
 
 The repository includes `deploy/nginx/stack.conf.example`. It is a **host-level
 Nginx** configuration: the reverse proxy and Docker host must be the same
