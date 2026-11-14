@@ -13,6 +13,11 @@ services:
       HF_HOME: /home/app/.cache/huggingface
     volumes:
       - farsipulse-model-cache:/home/app/.cache/huggingface
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
   atlasrag-db:
@@ -29,6 +34,11 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
   atlasrag:
@@ -50,6 +60,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
   relayforge:
@@ -67,9 +82,39 @@ services:
       RELAYFORGE_RETRY_BASE_DELAY_SECONDS: ${RELAYFORGE_RETRY_BASE_DELAY_SECONDS:-2}
     volumes:
       - relayforge-data:/srv/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["monitoring"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./deploy/monitoring/prometheus.yml.example:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/atlasrag-alerts.yml.example:/etc/prometheus/atlasrag-alerts.yml:ro
+      - ./secrets/atlasrag_metrics_token:/etc/prometheus/secrets/atlasrag_metrics_token:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      atlasrag:
+        condition: service_healthy
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
 volumes:
   farsipulse-model-cache:
   atlasrag-postgres-data:
   relayforge-data:
+  prometheus-data:
