@@ -7,8 +7,8 @@ import statistics
 import sys
 import tempfile
 import time
-from uuid import uuid4
 from pathlib import Path
+from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
