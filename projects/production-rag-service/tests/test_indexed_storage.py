@@ -23,7 +23,6 @@ def test_index_backfills_existing_database(tmp_path):
     path = str(tmp_path / "backfill.sqlite3")
     store = SQLiteStore(path)
     store.upsert_document("legacy", "Legacy", None, {}, ["legacyindexword"])
-    # Reopening the same file exercises the idempotent index initialization.
     reopened = SQLiteStore(path)
     assert reopened.search_chunks("legacyindexword", 1)[0]["document_id"] == "legacy"
 
@@ -55,3 +54,30 @@ def test_fts_normalization_remains_consistent_after_upsert(tmp_path):
     store.upsert_document("unicode", "Updated", None, {}, ["متن ه\u0654 و داده"])
     assert store.search_chunks("متن ۀ و داده", 3)[0]["title"] == "Updated"
     assert store.search_chunks("درباره کیان", 3) == []
+
+
+def test_in_memory_database_is_shared_across_store_connections():
+    store = SQLiteStore(":memory:")
+    store.upsert_document("memory", "Memory", None, {}, ["memoryindexword"])
+    assert store.search_chunks("memoryindexword", 1)[0]["document_id"] == "memory"
+
+
+def test_batch_upsert_rolls_back_all_documents_on_error():
+    store = SQLiteStore(":memory:")
+    try:
+        store.upsert_documents_batch([
+            {
+                "document_id": "first", "title": "First", "source": None,
+                "metadata": {}, "chunks": ["first anchor"],
+            },
+            {
+                "document_id": "second", "title": "Second", "source": None,
+                "metadata": {"invalid": object()}, "chunks": ["second anchor"],
+            },
+        ])
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("invalid metadata should abort the complete batch")
+    assert store.count_documents() == 0
+    assert store.search_chunks("first anchor", 3) == []
