@@ -4,6 +4,7 @@ This script deliberately requires --allow-target-load and caps concurrency.
 Do not point it at production without an approved maintenance/test window.
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 import json
 import os
@@ -11,7 +12,6 @@ import statistics
 import time
 import urllib.error
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def percentile(values: list[float], fraction: float) -> float:
