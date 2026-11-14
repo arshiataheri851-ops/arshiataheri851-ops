@@ -135,3 +135,17 @@ def test_api_key_is_required_for_batch_prediction():
     assert valid.status_code == 200
     assert valid.json()["count"] == 1
     assert valid.json()["predictions"][0]["sentiment"] == "positive"
+
+
+def test_protected_mode_refuses_to_start_without_api_key() -> None:
+    try:
+        Settings(require_api_key=True)
+    except ValueError as exc:
+        assert "SENTIMENT_API_KEY" in str(exc)
+        return
+    raise AssertionError("Protected mode must fail closed without an API key.")
+
+
+def test_protected_mode_accepts_configured_api_key() -> None:
+    settings = Settings(api_key=TEST_API_KEY, require_api_key=True)
+    assert settings.require_api_key is True
