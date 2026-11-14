@@ -40,6 +40,7 @@ services:
       RAG_DATABASE_URL: postgresql://atlasrag:${ATLASRAG_DB_PASSWORD}@atlasrag-db:5432/atlasrag
       RAG_AUTH_REQUIRED: "true"
       RAG_TENANT_API_KEYS_JSON: ${ATLASRAG_TENANT_API_KEYS_JSON:-}
+      RAG_METRICS_TOKEN: ${ATLASRAG_METRICS_TOKEN:-}
     depends_on:
       atlasrag-db:
         condition: service_healthy
