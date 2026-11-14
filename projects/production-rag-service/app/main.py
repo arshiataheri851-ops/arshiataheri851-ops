@@ -22,6 +22,7 @@ from .schemas import (
     QueryResponse,
 )
 from .store import SQLiteStore, TenantDocumentConflict
+from .postgres_store import PostgresStore
 
 
 def resolve_tenant(
@@ -50,7 +51,9 @@ def create_app(
     retriever: BM25Retriever | None = None,
 ) -> FastAPI:
     cfg = settings or get_settings()
-    database = store or SQLiteStore(cfg.database_path)
+    database = store or (
+        PostgresStore(cfg.database_url) if cfg.database_url else SQLiteStore(cfg.database_path)
+    )
     ranker = retriever or BM25Retriever()
 
     api = FastAPI(
@@ -102,8 +105,14 @@ def create_app(
         return {"service": "atlasrag", "version": api.version, "docs": "/docs", "health": "/health"}
 
     @api.get("/health", tags=["service"])
-    def health() -> dict[str, str]:
-        # Do not disclose global tenant/document counts on an unauthenticated probe.
+    def health(request: Request) -> dict[str, str]:
+        # Verify the backing database is reachable without exposing tenant data.
+        try:
+            healthy = request.app.state.store.health_check()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Database is unavailable.") from exc
+        if not healthy:
+            raise HTTPException(status_code=503, detail="Database is unavailable.")
         return {"status": "ok", "service": "atlasrag"}
 
     @api.post(
@@ -187,7 +196,8 @@ def create_app(
         ]
         return QueryResponse(
             answer=build_grounded_answer(payload.question, results),
-            grounded=bool(results), citations=citations, retrieval_method="sqlite_fts5",
+            grounded=bool(results), citations=citations,
+            retrieval_method=request.app.state.store.retrieval_method,
         )
 
     @api.post("/v1/evaluate", response_model=EvaluationResponse, tags=["evaluation"])
