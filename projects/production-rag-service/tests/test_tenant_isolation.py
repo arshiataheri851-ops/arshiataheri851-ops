@@ -4,10 +4,23 @@ from pydantic import ValidationError
 from app.config import Settings
 
 
-def test_protected_routes_reject_missing_and_invalid_api_keys(client):
-    assert client.get("/v1/documents", headers={"X-API-Key": ""}).status_code == 401
+def test_all_protected_routes_reject_missing_and_invalid_api_keys(client):
+    no_key = {"X-API-Key": ""}
+    bad_key = {"X-API-Key": "wrong"}
+    assert client.get("/health").status_code == 200
+    assert client.get("/", headers={}).status_code == 200
+    assert client.get("/v1/documents", headers=no_key).status_code == 401
     assert client.post(
-        "/v1/query", json={"question": "private content"}, headers={"X-API-Key": "wrong"}
+        "/v1/documents", json={"document_id": "x", "title": "X", "text": "test"}, headers=bad_key
+    ).status_code == 401
+    assert client.post("/v1/documents/batch", json={"documents": []}, headers=no_key).status_code == 401
+    assert client.delete("/v1/documents/x", headers=no_key).status_code == 401
+    assert client.post(
+        "/v1/query", json={"question": "private content"}, headers=bad_key
+    ).status_code == 401
+    assert client.post(
+        "/v1/evaluate", json={"cases": [{"question": "private content", "expected_document_id": "x"}]},
+        headers=no_key,
     ).status_code == 401
 
 
