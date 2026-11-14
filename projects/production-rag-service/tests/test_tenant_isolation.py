@@ -82,3 +82,19 @@ def test_metrics_endpoint_requires_its_own_secret_and_exposes_no_tenant_content(
     assert response.status_code == 200
     assert "atlasrag_http_requests_total" in response.text
     assert "test-tenant-a-key" not in response.text
+
+
+def test_audit_log_omits_api_keys_and_document_content(client, caplog):
+    caplog.set_level("INFO", logger="atlasrag.audit")
+    secret_text = "private-customer-content-should-never-enter-audit-log"
+    secret_key = "test-tenant-a-key-0123456789-abcdef"
+    response = client.post(
+        "/v1/documents",
+        json={"document_id": "private-doc-ref", "title": "Private", "text": secret_text},
+        headers={"X-API-Key": secret_key},
+    )
+    assert response.status_code == 201
+    assert '"event":"document.upsert"' in caplog.text
+    assert secret_text not in caplog.text
+    assert secret_key not in caplog.text
+    assert "private-doc-ref" not in caplog.text
