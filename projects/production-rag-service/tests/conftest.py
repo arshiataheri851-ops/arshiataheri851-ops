@@ -1,3 +1,11 @@
+import os
+
+os.environ.setdefault(
+    "RAG_TENANT_API_KEYS_JSON",
+    '{"tenant-a":"test-tenant-a-key-0123456789-abcdef","tenant-b":"test-tenant-b-key-0123456789-abcdef"}',
+)
+os.environ.setdefault("RAG_AUTH_REQUIRED", "true")
+
 import pytest
 from fastapi.testclient import TestClient
 
