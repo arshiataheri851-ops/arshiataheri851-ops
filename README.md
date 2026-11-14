@@ -102,15 +102,26 @@ A responsive sports retail storefront concept featuring product search, category
 
 
 
+## Additional engineering implementations
+
+### 11. [Agent Workflow Orchestrator](projects/agent-workflow-orchestrator/README.md)
+An approval-aware workflow control plane with DAG validation, dependency scheduling, explicit task states, bounded retries, SQLite persistence, and an append-only audit trail. It orchestrates external workers; it does not claim to implement autonomous LLM agents.
+
+### 12. [Event Stream Processing Platform](projects/event-stream-processing-platform/README.md)
+A compact event-ingestion reference implementation with schema validation, idempotent SQLite writes, a dead-letter queue, durable event storage, and deterministic windowed aggregation. It is a single-process educational implementation, not a distributed streaming broker.
+
+### 13. [LLM Gateway Control Plane](projects/llm-gateway-control-plane/README.md)
+A provider-agnostic chat API gateway with routing policies, preflight spend ceilings, bounded retries, and a clearly labelled local mock mode. Production deployment still requires tenant authentication, distributed rate limiting, and durable usage accounting.
+
 ## Additional web applications
 
-### 11. [RoutePilot — Fleet & Delivery Operations MVP](projects/routepilot/README.md)
+### 14. [RoutePilot — Fleet & Delivery Operations MVP](projects/routepilot/README.md)
 An executable fleet and delivery workflow MVP with a FastAPI + SQLite backend and browser dashboard. Includes delivery creation and status tracking, proof-of-delivery metadata, and simulated vehicle positions. It is an MVP: no authentication, tenant isolation, or live vehicle hardware integration is included.
 
-### 12. [SignalDesk — Service Operations Intelligence MVP](projects/signaldesk/README.md)
+### 15. [SignalDesk — Service Operations Intelligence MVP](projects/signaldesk/README.md)
 An executable service-desk MVP with a FastAPI + SQLite backend. Supports ticket creation, assignment, priority and SLA-risk filters, status changes, and per-ticket audit history. Prioritization is deterministic and rule-based, not an AI prediction; authentication and tenant isolation are not implemented.
 
-### 13. [ERYNDEX — Bilingual Company Website](projects/eryndex-company-website/README.md)
+### 16. [ERYNDEX — Bilingual Company Website](projects/eryndex-company-website/README.md)
 A responsive English/Persian B2B company website with service pages, project case studies, and a contact interface. The Cloudflare Worker source is included, but the contact service is not considered live until deployed, configured, and tested. See its README for security and launch requirements.
 
 ## Profile branding
