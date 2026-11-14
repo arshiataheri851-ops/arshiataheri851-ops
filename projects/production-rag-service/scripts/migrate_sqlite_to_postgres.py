@@ -18,8 +18,8 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from app.retrieval import normalize_text
 from app.postgres_store import PostgresStore
+from app.retrieval import normalize_text
 from app.store import TenantDocumentConflict
 
 
