@@ -17,6 +17,22 @@ on:
 jobs:
   test-and-benchmark:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: atlasrag_test
+          POSTGRES_USER: atlasrag
+          POSTGRES_PASSWORD: atlasrag-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlasrag -d atlasrag_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RAG_TEST_DATABASE_URL: postgresql://atlasrag:atlasrag-ci-password@localhost:5432/atlasrag_test
     defaults:
       run:
         working-directory: projects/production-rag-service
@@ -44,6 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and start AtlasRAG
         env:
+          ATLASRAG_DB_PASSWORD: atlasrag-ci-compose-password
           ATLASRAG_TENANT_API_KEYS_JSON: '{"ci":"ci-only-atlasrag-tenant-key-0123456789"}'
         run: docker compose up --build -d atlasrag
       - name: Wait for healthy API
