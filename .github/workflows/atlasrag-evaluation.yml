@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "projects/production-rag-service/**"
+      - "compose.yaml"
       - ".github/workflows/atlasrag-evaluation.yml"
   push:
     branches: [main]
     paths:
       - "projects/production-rag-service/**"
+      - "compose.yaml"
       - ".github/workflows/atlasrag-evaluation.yml"
   workflow_dispatch:
 
@@ -35,3 +37,37 @@ jobs:
           name: atlasrag-large-corpus-report
           path: projects/production-rag-service/reports/atlasrag-benchmark.json
           if-no-files-found: error
+
+  docker-compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start AtlasRAG
+        run: docker compose up --build -d atlasrag
+      - name: Wait for healthy API
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+
+          deadline = time.time() + 90
+          last_error = None
+          while time.time() < deadline:
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8002/health", timeout=3) as response:
+                      payload = json.load(response)
+                  if payload.get("status") == "ok":
+                      print(payload)
+                      break
+              except Exception as exc:
+                  last_error = exc
+                  time.sleep(3)
+          else:
+              raise SystemExit(f"AtlasRAG did not become healthy: {last_error}")
+          PY
+      - name: Exercise ingestion, indexed retrieval, and citations
+        run: python projects/production-rag-service/scripts/smoke_test.py --base-url http://127.0.0.1:8002
+      - name: Stop demo stack
+        if: always()
+        run: docker compose down -v
