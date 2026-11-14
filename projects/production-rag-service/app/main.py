@@ -54,11 +54,24 @@ def create_app(
     retriever: BM25Retriever | None = None,
 ) -> FastAPI:
     cfg = settings or get_settings()
-    database = store or (
-        PostgresStore(cfg.database_url) if cfg.database_url else SQLiteStore(cfg.database_path)
-    )
-    ranker = retriever or BM25Retriever()
+    if store is not None:
+        database = store
+    elif cfg.database_url:
+        if cfg.semantic_enabled:
+            from .embeddings import FastEmbedder
 
+            embedder = FastEmbedder(cfg.embedding_model_name, cfg.embedding_cache_dir)
+            database = PostgresStore(
+                cfg.database_url,
+                passage_embedding_function=embedder.embed_passages,
+                query_embedding_function=embedder.embed_query,
+            )
+        else:
+            database = PostgresStore(cfg.database_url)
+    else:
+        database = SQLiteStore(cfg.database_path)
+
+    ranker = retriever or BM25Retriever()
     close_database = getattr(database, "close", None)
 
     @asynccontextmanager
@@ -71,10 +84,10 @@ def create_app(
 
     api = FastAPI(
         title="AtlasRAG — Tenant-isolated Evidence Retrieval API",
-        version="2.0.0",
+        version="2.1.0",
         description=(
-            "Authenticated multi-tenant retrieval. Every document operation is scoped "
-            "to the tenant identified by its API key."
+            "Authenticated multi-tenant retrieval with optional multilingual "
+            "vector and lexical hybrid search."
         ),
         docs_url="/docs",
         redoc_url="/redoc",
@@ -125,7 +138,6 @@ def create_app(
 
     @api.get("/health", tags=["service"])
     def health(request: Request) -> dict[str, str]:
-        # Verify the backing database is reachable without exposing tenant data.
         try:
             healthy = request.app.state.store.health_check()
         except Exception as exc:
@@ -196,7 +208,6 @@ def create_app(
     ) -> dict[str, bool | str]:
         deleted = request.app.state.store.delete_document(document_id, tenant_id=tenant_id)
         if not deleted:
-            # Same response for missing and foreign-owned IDs prevents enumeration.
             raise HTTPException(status_code=404, detail="Document not found.")
         audit_event("document.delete", tenant_id, document_id=document_id)
         return {"document_id": document_id, "deleted": True}
