@@ -23,6 +23,7 @@ def client(tmp_path):
     settings = Settings(
         database_path=str(tmp_path / "test.sqlite3"),
         auth_required=True,
+        metrics_token="test-metrics-token-0123456789-abcdef",
         tenant_api_keys_json=(
             '{"tenant-a":"' + TEST_KEY_A + '","tenant-b":"' + TEST_KEY_B + '"}'
         ),
