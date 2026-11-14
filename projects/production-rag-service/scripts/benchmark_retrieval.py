@@ -31,17 +31,23 @@ def run_benchmark(document_count: int, query_count: int, database_url: str | Non
     tenant_id = f"benchmark_{uuid4().hex}"
     document_ids = [f"doc-{uuid4().hex}-{index:05d}" for index in range(document_count)]
     try:
-        for index, document_id in enumerate(document_ids):
-            anchor = f"atlasanchor{index:05d}"
-            text = (
-                f"Reference {anchor}. This document describes retrieval indexing, "
-                "persistent document storage, query processing, and evidence citations. "
-                "The corpus includes English and فارسی content for mixed-language checks. "
-            ) * 3
-            store.upsert_document(
-                document_id, f"Benchmark document {index}", "synthetic://benchmark",
-                {"benchmark": "synthetic"}, [text], tenant_id=tenant_id,
-            )
+        for batch_start in range(0, document_count, 100):
+            batch = []
+            for index in range(batch_start, min(batch_start + 100, document_count)):
+                anchor = f"atlasanchor{index:05d}"
+                text = (
+                    f"Reference {anchor}. This document describes retrieval indexing, "
+                    "persistent document storage, query processing, and evidence citations. "
+                    "The corpus includes English and فارسی content for mixed-language checks. "
+                ) * 3
+                batch.append({
+                    "document_id": document_ids[index],
+                    "title": f"Benchmark document {index}",
+                    "source": "synthetic://benchmark",
+                    "metadata": {"benchmark": "synthetic"},
+                    "chunks": [text],
+                })
+            store.upsert_documents_batch(batch, tenant_id=tenant_id)
 
         latencies_ms: list[float] = []
         reciprocal_ranks: list[float] = []
@@ -77,8 +83,7 @@ def run_benchmark(document_count: int, query_count: int, database_url: str | Non
             "latency_ms_p95": round(ordered[p95_index], 3),
         }
     finally:
-        for document_id in document_ids:
-            store.delete_document(document_id, tenant_id=tenant_id)
+        store.delete_documents(document_ids, tenant_id=tenant_id)
         if temporary_directory:
             temporary_directory.cleanup()
 
