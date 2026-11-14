@@ -1,7 +1,8 @@
-"""Tenant-scoped PostgreSQL persistence and full-text retrieval for AtlasRAG."""
+"""Tenant-scoped PostgreSQL persistence with lexical and pgvector retrieval."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from psycopg.rows import dict_row
@@ -11,17 +12,37 @@ from psycopg_pool import ConnectionPool
 from .retrieval import normalize_text, tokenize
 from .store import TenantDocumentConflict
 
+EMBEDDING_DIMENSION = 384
+RRF_K = 60
+
+
+def _vector_literal(vector: list[float]) -> str:
+    if len(vector) != EMBEDDING_DIMENSION:
+        raise ValueError(f"Embedding vectors must have {EMBEDDING_DIMENSION} dimensions.")
+    return "[" + ",".join(f"{value:.8f}" for value in vector) + "]"
+
 
 class PostgresStore:
-    """Transactional PostgreSQL store with tenant-filtered GIN full-text search."""
+    """Transactional PostgreSQL store with tenant-filtered hybrid retrieval."""
 
-    retrieval_method = "postgresql_fts"
-
-    def __init__(self, database_url: str, connect_timeout: int = 5):
+    def __init__(
+        self,
+        database_url: str,
+        connect_timeout: int = 5,
+        passage_embedding_function: Callable[[list[str]], list[list[float]]] | None = None,
+        query_embedding_function: Callable[[str], list[float]] | None = None,
+    ):
         if not database_url.startswith(("postgresql://", "postgres://")):
             raise ValueError("AtlasRAG DATABASE_URL must use the PostgreSQL scheme.")
+        if (passage_embedding_function is None) != (query_embedding_function is None):
+            raise ValueError("Passage and query embedding functions must be configured together.")
         self.database_url = database_url
         self.connect_timeout = connect_timeout
+        self.passage_embedding_function = passage_embedding_function
+        self.query_embedding_function = query_embedding_function
+        self.retrieval_method = (
+            "postgresql_hybrid_rrf" if query_embedding_function else "postgresql_fts"
+        )
         self.pool = ConnectionPool(
             conninfo=database_url,
             min_size=1,
@@ -45,6 +66,7 @@ class PostgresStore:
 
     def _initialize(self) -> None:
         with self._connect() as db:
+            db.execute("CREATE EXTENSION IF NOT EXISTS vector")
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS documents (
@@ -66,10 +88,12 @@ class PostgresStore:
                     chunk_index INTEGER NOT NULL,
                     text TEXT NOT NULL,
                     search_text TEXT NOT NULL,
+                    embedding vector(384),
                     UNIQUE(document_id, chunk_index)
                 )
                 """
             )
+            db.execute("ALTER TABLE chunks ADD COLUMN IF NOT EXISTS embedding vector(384)")
             db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_documents_tenant_updated "
                 "ON documents(tenant_id, updated_at DESC, document_id)"
@@ -83,10 +107,21 @@ class PostgresStore:
                 ON chunks USING GIN (to_tsvector('simple', search_text))
                 """
             )
+            db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
+                ON chunks USING hnsw (embedding vector_cosine_ops)
+                WHERE embedding IS NOT NULL
+                """
+            )
 
     def health_check(self) -> bool:
         with self._connect() as db:
-            return db.execute("SELECT 1 AS healthy").fetchone()["healthy"] == 1
+            row = db.execute(
+                "SELECT 1 AS healthy, "
+                "EXISTS(SELECT 1 FROM pg_extension WHERE extname='vector') AS vector_ready"
+            ).fetchone()
+            return row["healthy"] == 1 and row["vector_ready"] is True
 
     def upsert_document(
         self,
@@ -122,7 +157,20 @@ class PostgresStore:
         if any(not item["chunks"] for item in documents):
             raise ValueError("Every document must contain at least one indexable chunk.")
 
+        all_chunks = [chunk for item in documents for chunk in item["chunks"]]
+        embeddings = (
+            self.passage_embedding_function(all_chunks)
+            if self.passage_embedding_function
+            else [None] * len(all_chunks)
+        )
+        if len(embeddings) != len(all_chunks):
+            raise ValueError("Embedding provider returned an unexpected number of vectors.")
+        embedding_literals = [
+            _vector_literal(vector) if vector is not None else None for vector in embeddings
+        ]
+
         replaced: list[bool] = []
+        embedding_offset = 0
         with self._connect() as db:
             for item in documents:
                 document_id = item["document_id"]
@@ -163,24 +211,26 @@ class PostgresStore:
                     )
 
                 db.execute("DELETE FROM chunks WHERE document_id=%s", (document_id,))
+                rows = []
+                for index, chunk in enumerate(item["chunks"]):
+                    rows.append((
+                        f"{document_id}:{index}",
+                        document_id,
+                        index,
+                        chunk,
+                        normalize_text(chunk),
+                        embedding_literals[embedding_offset + index],
+                    ))
+                embedding_offset += len(item["chunks"])
                 with db.cursor() as cursor:
                     cursor.executemany(
                         """
                         INSERT INTO chunks(
-                            chunk_id, document_id, chunk_index, text, search_text
+                            chunk_id, document_id, chunk_index, text, search_text, embedding
                         )
-                        VALUES (%s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s::vector)
                         """,
-                        [
-                            (
-                                f"{document_id}:{index}",
-                                document_id,
-                                index,
-                                chunk,
-                                normalize_text(chunk),
-                            )
-                            for index, chunk in enumerate(item["chunks"])
-                        ],
+                        rows,
                     )
         return replaced
 
@@ -224,17 +274,11 @@ class PostgresStore:
             for row in rows
         ]
 
-    def search_chunks(
-        self,
-        query: str,
-        top_k: int = 5,
-        tenant_id: str = "default",
+    def _lexical_search(
+        self, query: str, top_k: int, tenant_id: str
     ) -> list[dict[str, Any]]:
-        """Use PostgreSQL's GIN-indexed simple-config FTS, scoped in SQL by tenant."""
-        if top_k < 1:
-            return []
         terms = list(dict.fromkeys(tokenize(query)))
-        if not terms:
+        if not terms or top_k < 1:
             return []
         tsquery = " | ".join(terms)
         with self._connect() as db:
@@ -256,12 +300,56 @@ class PostgresStore:
                 ORDER BY score DESC, c.chunk_id
                 LIMIT %s
                 """,
-                (tsquery, tenant_id, min(top_k, 100)),
+                (tsquery, tenant_id, top_k),
             ).fetchall()
-        return [
-            {**dict(row), "metadata": row["metadata_json"]}
-            for row in rows
-        ]
+        return [{**dict(row), "metadata": row["metadata_json"]} for row in rows]
+
+    def _semantic_search(
+        self, query: str, top_k: int, tenant_id: str
+    ) -> list[dict[str, Any]]:
+        if not self.query_embedding_function or top_k < 1:
+            return []
+        vector = _vector_literal(self.query_embedding_function(query))
+        with self._connect() as db:
+            rows = db.execute(
+                """
+                SELECT c.chunk_id, c.document_id, c.chunk_index, c.text,
+                       d.title, d.source, d.metadata_json,
+                       (1.0 - (c.embedding <=> %s::vector))::double precision AS score
+                FROM chunks c
+                JOIN documents d USING(document_id)
+                WHERE d.tenant_id=%s AND c.embedding IS NOT NULL
+                ORDER BY c.embedding <=> %s::vector, c.chunk_id
+                LIMIT %s
+                """,
+                (vector, tenant_id, vector, top_k),
+            ).fetchall()
+        return [{**dict(row), "metadata": row["metadata_json"]} for row in rows]
+
+    def search_chunks(
+        self,
+        query: str,
+        top_k: int = 5,
+        tenant_id: str = "default",
+    ) -> list[dict[str, Any]]:
+        """Fuse tenant-scoped lexical and semantic rankings using reciprocal rank fusion."""
+        if top_k < 1:
+            return []
+        candidate_k = min(max(top_k * 4, top_k), 100)
+        lexical = self._lexical_search(query, candidate_k, tenant_id)
+        if not self.query_embedding_function:
+            return lexical[:top_k]
+
+        semantic = self._semantic_search(query, candidate_k, tenant_id)
+        fused: dict[str, dict[str, Any]] = {}
+        for ranked in (lexical, semantic):
+            for rank, item in enumerate(ranked, start=1):
+                chunk_id = item["chunk_id"]
+                current = fused.setdefault(chunk_id, dict(item))
+                current["score"] = current.get("score", 0.0) + 100.0 / (RRF_K + rank)
+        return sorted(
+            fused.values(), key=lambda item: (-item["score"], item["chunk_id"])
+        )[:top_k]
 
     def delete_document(self, document_id: str, tenant_id: str = "default") -> bool:
         with self._connect() as db:
