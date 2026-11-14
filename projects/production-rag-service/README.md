@@ -1,130 +1,116 @@
-# AtlasRAG — Evidence Retrieval Platform
+# AtlasRAG — Tenant-Isolated Evidence Retrieval Platform
 
 [![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 
-AtlasRAG is a citation-first document retrieval API. It ingests documents, chunks and persists them in SQLite, retrieves matching passages through a persistent SQLite FTS5 index, and returns source-linked citations with every grounded response.
+AtlasRAG is an authenticated, multi-tenant document retrieval API. It ingests documents, indexes passages with SQLite FTS5, and returns source-linked citations. Every API key maps to one tenant, and all document operations are filtered by that tenant.
 
-**Scope is explicit:** AtlasRAG implements lexical retrieval and extractive evidence selection. It does not call an LLM to generate answers. If no matching evidence exists, it abstains instead of inventing a response.
+**Scope is explicit:** AtlasRAG performs lexical retrieval and extractive evidence selection. It does not call an LLM to generate answers. If no matching evidence exists, it abstains instead of inventing a response.
+
+## Security model
+
+- Every protected endpoint requires `X-API-Key`; missing or invalid keys receive HTTP 401.
+- Each API key maps to exactly one configured tenant ID through `RAG_TENANT_API_KEYS_JSON`.
+- API keys must be independently generated random secrets of at least 32 characters. Comparisons use constant-time `hmac.compare_digest`.
+- Ingestion, batch ingestion, listing, deletion, retrieval, citations, and evaluation are all tenant-scoped.
+- A tenant cannot retrieve, list, overwrite, or delete another tenant's documents. Cross-tenant document-ID collisions return HTTP 409; foreign or missing deletes both return 404.
+- Tenant-wide counts are not exposed by the unauthenticated health endpoint.
+- Authentication is enabled by default. Startup fails if authentication is enabled but no valid tenant keys are configured.
+- Existing database records found during migration are quarantined under tenant ID `legacy`; they are not visible to newly configured tenants unless an administrator explicitly provisions that tenant.
+- Use HTTPS at the ingress/reverse proxy, store API keys in a secrets manager, rotate keys, restrict network access, and back up the database. SQLite is a single-node storage backend, not a distributed multi-replica database.
+
+The API-key mapping is configuration-based, not a self-service identity or key-management system. Do not expose the API directly to browsers; put a trusted backend/API gateway in front of it so tenant credentials are not embedded in client-side code.
 
 ## Capabilities
 
-- Document create/upsert, listing, deletion, and bounded batch ingestion (up to 100 documents per request).
-- Configurable word-based chunking with overlap.
+- Document create/upsert, listing, deletion, and atomic batch ingestion (up to 100 documents).
+- Configurable chunking with overlap.
 - SQLite transactions, foreign keys, WAL mode, bounded cache, and persistent FTS5 indexing.
 - Persian/Arabic Unicode normalization (including common Yeh/Kaf variants and ZWNJ handling).
-- Indexed top-k retrieval without loading the entire chunk corpus into application memory per query.
-- Extractive answer selection and per-chunk citations.
-- Explicit no-evidence response.
-- Hit Rate@k and Mean Reciprocal Rank evaluation endpoint.
-- Paginated document listing and automated tests.
+- Indexed top-k retrieval without loading the full corpus into application memory per query.
+- Extractive answers, source-linked citations, and explicit no-evidence responses.
+- Tenant-scoped Hit Rate@k and Mean Reciprocal Rank evaluation.
+- Paginated document listing and automated tests for cross-tenant access isolation.
 
 ## Architecture
 
 ```text
-                    +-----------------------+
-                    |   FastAPI / Pydantic  |
-                    +-----------+-----------+
-                                |
-               +----------------+----------------+
-               |                |                |
-          Document API      Query API       Evaluation API
-               |                |                |
-          Chunker + Batch    FTS5 indexed      Retrieval metrics
-               |             retrieval
-               v                |
-          SQLite tables <--- FTS5 index
-               |                |
-               +----------------+
-                                v
-                  Extractive answer + citations
+                   FastAPI
+                     |
+             X-API-Key authentication
+                     |
+              API key -> tenant ID
+                     |
+          Tenant-scoped service layer
+             /       |        \
+        Ingest     Query    Evaluation
+           |         |          |
+           +---- SQLite / FTS5 --+
+             tenant-filtered rows
+                     |
+          Extractive answer + citations
 ```
 
 ## Run locally
 
 Python 3.11+ with SQLite compiled with FTS5 support.
 
-```bash
-python -m venv .venv
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-uvicorn app.main:app --reload
-```
-
-The database is created automatically at `./data/rag.sqlite3`. Override it with `RAG_DATABASE_PATH`. Open http://127.0.0.1:8000/docs.
-
-## Shared stack secrets and network scope
-
-Before starting the full stack, copy the repository-root `.env.example` to `.env` and configure independent 32+ character secrets for FarsiPulse and the two RelayForge roles, plus the exact RelayForge destination host allowlist. Do not commit `.env`. All published ports are loopback-only. AtlasRAG itself has no authentication or tenant isolation and is intended only for local evaluation; never expose it or load confidential customer documents.
-
-## Quick start with Docker Compose
-
-From the repository root:
+From the repository root, copy `.env.example` to `.env`, replace the AtlasRAG example mapping with your own tenant ID and independently generated random API key (minimum 32 characters), then start the service:
 
 ```bash
 docker compose up --build -d atlasrag
 docker compose ps atlasrag
 ```
 
-The API is bound to `127.0.0.1:8002` and persists its SQLite database in the `atlasrag-data` named volume. Wait until the container health status is `healthy`, then run the end-to-end smoke check:
+The API is bound to `127.0.0.1:8002` and persists its database in the `atlasrag-data` named volume. The service fails to start if `ATLASRAG_TENANT_API_KEYS_JSON` is missing or invalid. Do not use the example placeholder as a real credential.
+
+Check health:
 
 ```bash
-python projects/production-rag-service/scripts/smoke_test.py --base-url http://127.0.0.1:8002
+curl http://127.0.0.1:8002/health
+```
+
+Run the end-to-end authenticated smoke check (set `ATLASRAG_API_KEY` to a configured tenant key):
+
+```python
+python projects/production-rag-service/scripts/smoke_test.py --base-url http://127.0.0.1:8002 --api-key "$ATLASRAG_API_KEY"
 ```
 
 Open `http://127.0.0.1:8002/docs` for the interactive API. Stop the service with `docker compose down`; the named volume remains. To remove demo data too, use `docker compose down -v`.
 
-The Compose setup binds demo services to loopback only. AtlasRAG currently has no user authentication or tenant isolation; do not expose it beyond the local machine or load confidential customer documents. FarsiPulse in the shared stack requires a configured `SENTIMENT_API_KEY` and fails closed if it is missing. RelayForge also fails closed on protected routes until its independent producer and operator tokens are configured.
-
 ## API workflow
 
-Create or replace one document:
+Send the tenant's API key in the `X-API-Key` header on every protected request.
+
+Create or replace a document:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/documents \
+curl -X POST http://127.0.0.1:8002/v1/documents \
+  -H "X-API-Key: $ATLASRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_id":"guide-1","title":"Database Guide","source":"internal://guide","text":"Database indexes improve lookup performance by reducing the number of rows scanned."}'
 ```
 
-Ingest a batch (maximum 100 documents):
+Batch ingestion (maximum 100 documents) uses `POST /v1/documents/batch` with a JSON body containing a `documents` array.
 
-```json
-{
-  "documents": [
-    {"document_id":"guide-2","title":"Search Guide","text":"Full-text indexes accelerate lexical search."},
-    {"document_id":"guide-3","title":"Storage Guide","text":"SQLite WAL allows concurrent readers."}
-  ]
-}
-```
-
-Send that JSON to `POST /v1/documents/batch`.
-
-Search indexed documents:
+Search only the authenticated tenant's documents:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/query \
+curl -X POST http://127.0.0.1:8002/v1/query \
+  -H "X-API-Key: $ATLASRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"question":"How do database indexes improve lookup performance?","top_k":3}'
 ```
 
-List documents with pagination: `GET /v1/documents?limit=100&offset=0`
-
-Delete a document and its indexed chunks: `DELETE /v1/documents/guide-1`
-
-Evaluate a labeled set:
-
-```bash
-curl -X POST http://127.0.0.1:8000/v1/evaluate \
-  -H "Content-Type: application/json" \
-  -d '{"top_k":3,"cases":[{"question":"How do indexes help?","expected_document_id":"guide-1"}]}'
-```
+- List this tenant's documents: `GET /v1/documents?limit=100&offset=0`
+- Delete this tenant's document: `DELETE /v1/documents/guide-1`
+- Evaluate retrieval against this tenant's labeled cases: `POST /v1/evaluate`
 
 ## Large-corpus benchmark
 
 Run the reproducible controlled benchmark:
 
 ```bash
-python scripts/benchmark_retrieval.py --documents 1000 --queries 100
+python projects/production-rag-service/scripts/benchmark_retrieval.py --documents 1000 --queries 100
 ```
 
 The script reports Hit Rate@5, MRR@5, p50 latency, p95 latency, and corpus size. GitHub Actions runs it on changes and uploads the JSON report as an artifact.
@@ -133,10 +119,12 @@ The script reports Hit Rate@5, MRR@5, p50 latency, p95 latency, and corpus size.
 
 ## Configuration
 
-Environment variables use the `RAG_` prefix:
+All settings use the `RAG_` prefix:
 
 | Variable | Default | Description |
 |---|---:|---|
+| `RAG_AUTH_REQUIRED` | `true` | Require API-key authentication; production must keep this enabled |
+| `RAG_TENANT_API_KEYS_JSON` | empty | JSON object mapping tenant IDs to unique API keys; required when auth is enabled |
 | `RAG_DATABASE_PATH` | `./data/rag.sqlite3` | SQLite file path |
 | `RAG_CHUNK_SIZE` | `700` | Maximum words per chunk |
 | `RAG_CHUNK_OVERLAP` | `100` | Overlapping words |
@@ -153,13 +141,13 @@ pytest -q
 python scripts/benchmark_retrieval.py --documents 1000 --queries 100
 ```
 
-## Storage and scaling boundaries
+## Operational boundaries
 
-- FTS5 avoids a full-corpus Python scan on every query; document changes update the index transactionally.
-- SQLite WAL and connection-level timeouts improve single-node concurrency and restart durability.
-- SQLite remains a single-node database. Multiple API replicas sharing one local file are not a supported distributed deployment.
-- For multi-node scale, the next storage adapter should target PostgreSQL plus a dedicated search index (or a managed vector/hybrid search service), with background ingestion and tenant-aware access controls.
-- Authentication, tenant isolation, asynchronous ingestion, distributed workers, vector embeddings, and semantic/hybrid ranking are not implemented.
+- SQLite is suitable for a single service instance. Multi-node deployment requires a shared transactional database and a tenant-aware search backend.
+- Configure HTTPS, ingress allowlists, rate limits, request-size limits, monitoring, log redaction, backups, and a tested restore/rollback procedure before production exposure.
+- API keys are configured out of band. A production control plane for tenant provisioning, key rotation/revocation, audit events, and usage quotas remains a separate operational component.
+- The retrieval engine is lexical, not semantic/vector or hybrid search.
 - Answer selection is extractive, not LLM generation.
+- Representative judged relevance evaluation and target-host load testing are still required before making customer-facing quality or capacity claims.
 
-These boundaries are intentional: benchmark results and production capabilities must not be overstated.
+Do not claim unrestricted production readiness solely from passing CI or synthetic benchmark results.
