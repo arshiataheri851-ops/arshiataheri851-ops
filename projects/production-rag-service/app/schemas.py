@@ -1,6 +1,6 @@
 """Validated request and response contracts for AtlasRAG."""
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class DocumentIn(BaseModel):
@@ -24,6 +24,13 @@ class DocumentBatchIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     documents: list[DocumentIn] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def require_unique_document_ids(self) -> "DocumentBatchIn":
+        identifiers = [document.document_id for document in self.documents]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("A batch cannot contain duplicate document_id values.")
+        return self
 
 
 class IngestResponse(BaseModel):
