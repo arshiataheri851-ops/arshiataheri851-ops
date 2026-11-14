@@ -41,8 +41,17 @@ class Settings(BaseSettings):
         for tenant_id, api_key in keys.items():
             if not isinstance(tenant_id, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", tenant_id):
                 raise ValueError("tenant IDs must contain only letters, numbers, underscores, or hyphens")
-            if not isinstance(api_key, str) or len(api_key) < 32:
-                raise ValueError(f"API key for tenant '{tenant_id}' must be at least 32 characters")
+            if (
+                not isinstance(api_key, str)
+                or not 32 <= len(api_key) <= 256
+                or not api_key.isascii()
+                or any(character.isspace() for character in api_key)
+            ):
+                raise ValueError(
+                    f"API key for tenant '{tenant_id}' must be 32-256 ASCII characters without whitespace"
+                )
+        if len(set(keys.values())) != len(keys):
+            raise ValueError("Each tenant must have a unique API key")
         if self.auth_required and not keys:
             raise ValueError("Authentication is enabled but no tenant API keys are configured")
         return self
