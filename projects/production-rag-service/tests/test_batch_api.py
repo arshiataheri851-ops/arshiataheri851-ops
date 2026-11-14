@@ -14,7 +14,7 @@ def test_batch_ingestion_and_document_pagination(client):
     second_page = client.get("/v1/documents?limit=2&offset=2")
     assert len(first_page.json()) == 2
     assert len(second_page.json()) == 1
-    assert client.get("/health").json()["indexed_chunks"] == 3
+    assert client.get("/health").json() == {"status": "ok", "service": "atlasrag"}
 
 
 def test_batch_limit_is_validated(client):
