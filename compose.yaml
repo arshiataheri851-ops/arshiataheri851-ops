@@ -5,32 +5,118 @@ services:
     build:
       context: ./projects/persian-sentiment-api
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     environment:
+      SENTIMENT_API_KEY: ${SENTIMENT_API_KEY:-}
+      SENTIMENT_REQUIRE_API_KEY: "true"
       SENTIMENT_MAX_SEQUENCE_LENGTH: "512"
       HF_HOME: /home/app/.cache/huggingface
     volumes:
       - farsipulse-model-cache:/home/app/.cache/huggingface
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: unless-stopped
+
+  atlasrag-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: atlasrag
+      POSTGRES_USER: atlasrag
+      POSTGRES_PASSWORD: ${ATLASRAG_DB_PASSWORD:?Set ATLASRAG_DB_PASSWORD in .env}
+    volumes:
+      - atlasrag-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlasrag -d atlasrag"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
   atlasrag:
     build:
       context: ./projects/production-rag-service
     ports:
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
     environment:
-      RAG_DATABASE_PATH: /srv/app/data/atlasrag.sqlite3
+      RAG_DATABASE_URL: postgresql://atlasrag:${ATLASRAG_DB_PASSWORD}@atlasrag-db:5432/atlasrag
+      RAG_AUTH_REQUIRED: "true"
+      RAG_TENANT_API_KEYS_JSON: ${ATLASRAG_TENANT_API_KEYS_JSON:-}
+      RAG_METRICS_TOKEN: ${ATLASRAG_METRICS_TOKEN:-}
     volumes:
-      - atlasrag-data:/srv/app/data
+      - ./migration:/srv/app/migration:ro
+    depends_on:
+      atlasrag-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
   relayforge:
     build:
       context: ./projects/webhook-reliability-platform
     ports:
-      - "8003:8000"
+      - "127.0.0.1:8003:8000"
+    environment:
+      RELAYFORGE_DATABASE_PATH: /srv/app/data/relayforge.sqlite3
+      RELAYFORGE_API_TOKEN: ${RELAYFORGE_API_TOKEN:-}
+      RELAYFORGE_OPERATOR_TOKEN: ${RELAYFORGE_OPERATOR_TOKEN:-}
+      RELAYFORGE_ALLOWED_HOSTS: ${RELAYFORGE_ALLOWED_HOSTS:-}
+      RELAYFORGE_ENABLE_WORKER: ${RELAYFORGE_ENABLE_WORKER:-false}
+      RELAYFORGE_MAX_ATTEMPTS: ${RELAYFORGE_MAX_ATTEMPTS:-5}
+      RELAYFORGE_RETRY_BASE_DELAY_SECONDS: ${RELAYFORGE_RETRY_BASE_DELAY_SECONDS:-2}
+    volumes:
+      - relayforge-data:/srv/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["monitoring"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./deploy/monitoring/prometheus.yml.example:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/atlasrag-alerts.yml.example:/etc/prometheus/atlasrag-alerts.yml:ro
+      - ./secrets/atlasrag_metrics_token:/etc/prometheus/secrets/atlasrag_metrics_token:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      atlasrag:
+        condition: service_healthy
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
 
 volumes:
   farsipulse-model-cache:
-  atlasrag-data:
+  atlasrag-postgres-data:
+  relayforge-data:
+  prometheus-data:

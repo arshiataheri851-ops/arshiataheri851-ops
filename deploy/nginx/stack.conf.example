@@ -1,0 +1,116 @@
+# Include this file inside Nginx's http {} context.
+# Replace the example hostnames and certificate paths after DNS is configured.
+# All upstreams remain private loopback listeners from compose.yaml.
+# Run Nginx on the Docker host itself; 127.0.0.1 is not the host from a container.
+
+limit_req_zone $binary_remote_addr zone=atlasrag_rate:10m rate=5r/s;
+limit_req_zone $binary_remote_addr zone=farsipulse_rate:10m rate=2r/s;
+limit_req_zone $binary_remote_addr zone=relayforge_rate:10m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=per_client_conn:10m;
+limit_req_status 429;
+limit_conn_status 429;
+
+server {
+    listen 80;
+    server_name atlasrag.example.com farsipulse.example.com relayforge.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name atlasrag.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/atlasrag.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/atlasrag.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_tickets off;
+
+    client_max_body_size 12m;
+    limit_req zone=atlasrag_rate burst=15 nodelay;
+    limit_conn per_client_conn 20;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    location = /metrics {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+        proxy_pass http://127.0.0.1:8002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name farsipulse.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/farsipulse.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/farsipulse.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_tickets off;
+
+    client_max_body_size 2m;
+    limit_req zone=farsipulse_rate burst=8 nodelay;
+    limit_conn per_client_conn 10;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name relayforge.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/relayforge.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/relayforge.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_tickets off;
+
+    client_max_body_size 1m;
+    limit_req zone=relayforge_rate burst=20 nodelay;
+    limit_conn per_client_conn 20;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    location / {
+        proxy_pass http://127.0.0.1:8003;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}

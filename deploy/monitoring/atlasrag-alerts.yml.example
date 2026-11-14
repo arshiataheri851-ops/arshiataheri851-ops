@@ -1,0 +1,31 @@
+groups:
+  - name: atlasrag
+    rules:
+      - alert: AtlasRAGTargetDown
+        expr: up{job="atlasrag"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: AtlasRAG metrics target is unavailable
+      - alert: AtlasRAGHighServerErrorRate
+        expr: |
+          sum(rate(atlasrag_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(atlasrag_http_requests_total[5m])), 0.001) > 0.03
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: AtlasRAG 5xx rate is above 3 percent
+      - alert: AtlasRAGHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(atlasrag_http_request_duration_seconds_bucket[5m]))
+          ) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: AtlasRAG p95 HTTP latency exceeds 1.5 seconds
