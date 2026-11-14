@@ -36,6 +36,11 @@ artifacts/
 reports/
 **/reports/
 
+# Local deployment credentials, backups, and imported legacy databases
+/secrets/
+/backups/
+/migration/
+
 # Packaging and OS files
 dist/
 build/
