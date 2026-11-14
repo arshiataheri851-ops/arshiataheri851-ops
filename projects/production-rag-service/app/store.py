@@ -1,4 +1,4 @@
-"""SQLite persistence and indexed retrieval for AtlasRAG."""
+"""Tenant-scoped SQLite persistence and indexed retrieval for AtlasRAG."""
 
 import json
 import sqlite3
@@ -9,11 +9,14 @@ from uuid import uuid4
 from .retrieval import normalize_text, tokenize
 
 
-class SQLiteStore:
-    """Transactional SQLite store with a persistent FTS5 index.
+class TenantDocumentConflict(ValueError):
+    """A document ID is already owned by another tenant."""
 
-    Each operation owns its connection. WAL supports concurrent readers and a
-    serialized writer; this remains a single-node storage backend.
+
+class SQLiteStore:
+    """Transactional SQLite store with tenant-filtered FTS5 retrieval.
+
+    SQLite is a single-node backend. Every document operation is scoped by tenant_id.
     """
 
     def __init__(self, database_path: str):
@@ -53,6 +56,7 @@ class SQLiteStore:
                 """
                 CREATE TABLE IF NOT EXISTS documents (
                     document_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'legacy',
                     title TEXT NOT NULL,
                     source TEXT,
                     metadata_json TEXT NOT NULL DEFAULT '{}',
@@ -73,11 +77,15 @@ class SQLiteStore:
                 );
                 """
             )
-            columns = {row["name"] for row in db.execute("PRAGMA table_info(chunks)")}
-            needs_rebuild = "search_text" not in columns
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(documents)")}
+            if "tenant_id" not in columns:
+                # Existing records are quarantined under the non-default legacy tenant.
+                db.execute("ALTER TABLE documents ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'legacy'")
+            db.execute("CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id, updated_at)")
+            chunk_columns = {row["name"] for row in db.execute("PRAGMA table_info(chunks)")}
+            needs_rebuild = "search_text" not in chunk_columns
             if needs_rebuild:
                 db.execute("ALTER TABLE chunks ADD COLUMN search_text TEXT NOT NULL DEFAULT ''")
-
             db.executescript(
                 """
                 DROP TRIGGER IF EXISTS chunks_ai;
@@ -112,23 +120,18 @@ class SQLiteStore:
             )
 
     def upsert_document(
-        self,
-        document_id: str,
-        title: str,
-        source: str | None,
-        metadata: dict[str, Any],
-        chunks: list[str],
+        self, document_id: str, title: str, source: str | None,
+        metadata: dict[str, Any], chunks: list[str], tenant_id: str = "default",
     ) -> bool:
         return self.upsert_documents_batch([{
-            "document_id": document_id,
-            "title": title,
-            "source": source,
-            "metadata": metadata,
-            "chunks": chunks,
-        }])[0]
+            "document_id": document_id, "title": title, "source": source,
+            "metadata": metadata, "chunks": chunks,
+        }], tenant_id=tenant_id)[0]
 
-    def upsert_documents_batch(self, documents: list[dict[str, Any]]) -> list[bool]:
-        """Upsert multiple documents atomically; return whether each already existed."""
+    def upsert_documents_batch(
+        self, documents: list[dict[str, Any]], tenant_id: str = "default"
+    ) -> list[bool]:
+        """Atomically upsert documents owned by one tenant."""
         if not documents:
             return []
         identifiers = [item["document_id"] for item in documents]
@@ -136,26 +139,27 @@ class SQLiteStore:
             raise ValueError("A batch cannot contain duplicate document_id values.")
         if any(not item["chunks"] for item in documents):
             raise ValueError("Every document must contain at least one indexable chunk.")
-
         replaced: list[bool] = []
         with self._connect() as db:
             for item in documents:
                 document_id = item["document_id"]
-                existed = db.execute(
-                    "SELECT 1 FROM documents WHERE document_id=?", (document_id,)
-                ).fetchone() is not None
+                existing = db.execute(
+                    "SELECT tenant_id FROM documents WHERE document_id=?", (document_id,)
+                ).fetchone()
+                if existing and existing["tenant_id"] != tenant_id:
+                    raise TenantDocumentConflict("Document ID is already owned by another tenant.")
+                existed = existing is not None
                 db.execute(
                     """
-                    INSERT INTO documents(document_id,title,source,metadata_json)
-                    VALUES(?,?,?,?)
+                    INSERT INTO documents(document_id,tenant_id,title,source,metadata_json)
+                    VALUES(?,?,?,?,?)
                     ON CONFLICT(document_id) DO UPDATE SET
                         title=excluded.title, source=excluded.source,
                         metadata_json=excluded.metadata_json, updated_at=CURRENT_TIMESTAMP
+                    WHERE documents.tenant_id=excluded.tenant_id
                     """,
                     (
-                        document_id,
-                        item["title"],
-                        item.get("source"),
+                        document_id, tenant_id, item["title"], item.get("source"),
                         json.dumps(item.get("metadata", {}), ensure_ascii=False),
                     ),
                 )
@@ -170,43 +174,49 @@ class SQLiteStore:
                 replaced.append(existed)
         return replaced
 
-    def list_documents(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+    def list_documents(
+        self, limit: int = 100, offset: int = 0, tenant_id: str = "default"
+    ) -> list[dict[str, Any]]:
         with self._connect() as db:
             rows = db.execute(
                 """
                 SELECT d.document_id, d.title, d.source, d.created_at, d.updated_at,
                        COUNT(c.chunk_id) AS chunk_count
                 FROM documents d LEFT JOIN chunks c USING(document_id)
+                WHERE d.tenant_id=?
                 GROUP BY d.document_id
                 ORDER BY d.updated_at DESC, d.document_id
                 LIMIT ? OFFSET ?
                 """,
-                (limit, offset),
+                (tenant_id, limit, offset),
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def list_chunks(self) -> list[dict[str, Any]]:
+    def list_chunks(self, tenant_id: str = "default") -> list[dict[str, Any]]:
         with self._connect() as db:
             rows = db.execute(
                 """
                 SELECT c.chunk_id,c.document_id,c.chunk_index,c.text,
                        d.title,d.source,d.metadata_json
                 FROM chunks c JOIN documents d USING(document_id)
+                WHERE d.tenant_id=?
                 ORDER BY c.document_id,c.chunk_index
-                """
+                """,
+                (tenant_id,),
             ).fetchall()
         return [{**dict(row), "metadata": json.loads(row["metadata_json"])} for row in rows]
 
-    def search_chunks(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
-        """Retrieve only matching chunks from the persistent full-text index."""
+    def search_chunks(
+        self, query: str, top_k: int = 5, tenant_id: str = "default"
+    ) -> list[dict[str, Any]]:
+        """Retrieve matching chunks only from the authenticated tenant."""
         if top_k < 1:
             return []
         terms = tokenize(query)
         if not terms:
             return []
         match_query = " OR ".join(
-            '"' + term.replace('"', '""') + '"'
-            for term in dict.fromkeys(terms)
+            '"' + term.replace('"', '""') + '"' for term in dict.fromkeys(terms)
         )
         with self._connect() as db:
             rows = db.execute(
@@ -217,26 +227,31 @@ class SQLiteStore:
                 FROM chunks_fts
                 JOIN chunks c ON c.chunk_id = chunks_fts.chunk_id
                 JOIN documents d ON d.document_id = c.document_id
-                WHERE chunks_fts MATCH ?
+                WHERE chunks_fts MATCH ? AND d.tenant_id=?
                 ORDER BY bm25(chunks_fts, 0.0, 1.0), c.chunk_id
                 LIMIT ?
                 """,
-                (match_query, min(top_k, 100)),
+                (match_query, tenant_id, min(top_k, 100)),
             ).fetchall()
-        return [
-            {**dict(row), "metadata": json.loads(row["metadata_json"])}
-            for row in rows
-        ]
+        return [{**dict(row), "metadata": json.loads(row["metadata_json"])} for row in rows]
 
-    def delete_document(self, document_id: str) -> bool:
+    def delete_document(self, document_id: str, tenant_id: str = "default") -> bool:
         with self._connect() as db:
-            cursor = db.execute("DELETE FROM documents WHERE document_id=?", (document_id,))
+            cursor = db.execute(
+                "DELETE FROM documents WHERE document_id=? AND tenant_id=?",
+                (document_id, tenant_id),
+            )
             return cursor.rowcount > 0
 
-    def count_documents(self) -> int:
+    def count_documents(self, tenant_id: str = "default") -> int:
         with self._connect() as db:
-            return int(db.execute("SELECT COUNT(*) FROM documents").fetchone()[0])
+            return int(db.execute(
+                "SELECT COUNT(*) FROM documents WHERE tenant_id=?", (tenant_id,)
+            ).fetchone()[0])
 
-    def count_chunks(self) -> int:
+    def count_chunks(self, tenant_id: str = "default") -> int:
         with self._connect() as db:
-            return int(db.execute("SELECT COUNT(*) FROM chunks").fetchone()[0])
+            return int(db.execute(
+                """SELECT COUNT(*) FROM chunks c JOIN documents d USING(document_id)
+                   WHERE d.tenant_id=?""", (tenant_id,)
+            ).fetchone()[0])
