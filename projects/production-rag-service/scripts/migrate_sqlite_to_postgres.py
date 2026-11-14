@@ -29,7 +29,8 @@ def migrate(sqlite_path: str, database_url: str) -> dict[str, int]:
         raise FileNotFoundError(f"SQLite source database does not exist: {source_path}")
 
     # Ensure the destination schema and its indexes exist before copying.
-    PostgresStore(database_url)
+    destination_store = PostgresStore(database_url)
+    destination_store.close()
     source = sqlite3.connect(f"file:{source_path.resolve()}?mode=ro", uri=True)
     source.row_factory = sqlite3.Row
     document_columns = {
