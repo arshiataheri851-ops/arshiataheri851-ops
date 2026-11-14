@@ -7,7 +7,13 @@ from time import perf_counter
 from typing import Any
 
 from fastapi import FastAPI, Request
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+)
 
 REGISTRY = CollectorRegistry()
 HTTP_REQUESTS = Counter(
