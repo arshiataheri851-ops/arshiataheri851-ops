@@ -1,5 +1,11 @@
+import pytest
+from pydantic import ValidationError
+
+from app.config import Settings
+
+
 def test_protected_routes_reject_missing_and_invalid_api_keys(client):
-    assert client.get("/v1/documents", headers={}).status_code == 401
+    assert client.get("/v1/documents", headers={"X-API-Key": ""}).status_code == 401
     assert client.post(
         "/v1/query", json={"question": "private content"}, headers={"X-API-Key": "wrong"}
     ).status_code == 401
@@ -37,9 +43,6 @@ def test_tenants_cannot_read_search_replace_or_delete_each_others_documents(clie
 
 
 def test_auth_required_configuration_fails_closed_without_tenant_keys():
-    import pytest
-    from pydantic import ValidationError
-    from app.config import Settings
 
     with pytest.raises(ValidationError):
         Settings(auth_required=True, tenant_api_keys_json="")
