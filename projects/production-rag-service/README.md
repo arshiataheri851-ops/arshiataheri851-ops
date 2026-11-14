@@ -53,6 +53,10 @@ uvicorn app.main:app --reload
 
 The database is created automatically at `./data/rag.sqlite3`. Override it with `RAG_DATABASE_PATH`. Open http://127.0.0.1:8000/docs.
 
+## Shared stack secrets and network scope
+
+Before starting the full stack, copy the repository-root `.env.example` to `.env` and configure independent 32+ character secrets for FarsiPulse and the two RelayForge roles, plus the exact RelayForge destination host allowlist. Do not commit `.env`. All published ports are loopback-only. AtlasRAG itself has no authentication or tenant isolation and is intended only for local evaluation; never expose it or load confidential customer documents.
+
 ## Quick start with Docker Compose
 
 From the repository root:
