@@ -9,7 +9,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="RAG_", extra="ignore")
 
-    database_path: str = "./data/rag.sqlite3"
+    database_url: str = ""
+    database_path: str = "./data/rag.sqlite3"  # SQLite fallback for tests and local-only development.
     auth_required: bool = True
     tenant_api_keys_json: str = ""
     chunk_size: int = Field(default=700, ge=50, le=5_000)
