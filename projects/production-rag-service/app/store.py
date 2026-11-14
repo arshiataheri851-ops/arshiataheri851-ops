@@ -4,6 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from .retrieval import normalize_text, tokenize
 
@@ -16,17 +17,31 @@ class SQLiteStore:
     """
 
     def __init__(self, database_path: str):
-        self.database_path = database_path
-        if database_path != ":memory:":
-            Path(database_path).expanduser().parent.mkdir(parents=True, exist_ok=True)
+        self._memory_uri = None
+        self._anchor = None
+        if database_path == ":memory:":
+            self.database_path = ":memory:"
+            self._memory_uri = f"file:atlasrag-{uuid4().hex}?mode=memory&cache=shared"
+            self._anchor = sqlite3.connect(self._memory_uri, uri=True, timeout=30)
+        else:
+            self.database_path = str(Path(database_path).expanduser())
+            Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
+        if self.database_path != ":memory:":
+            try:
+                Path(self.database_path).chmod(0o600)
+            except OSError:
+                pass
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path, timeout=30)
+        if self._memory_uri:
+            connection = sqlite3.connect(self._memory_uri, uri=True, timeout=30)
+        else:
+            connection = sqlite3.connect(self.database_path, timeout=30)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA busy_timeout = 30000")
-        if self.database_path != ":memory:":
+        if not self._memory_uri:
             connection.execute("PRAGMA journal_mode = WAL")
             connection.execute("PRAGMA synchronous = NORMAL")
             connection.execute("PRAGMA cache_size = -20000")
@@ -58,7 +73,6 @@ class SQLiteStore:
                 );
                 """
             )
-            # Migrate older databases to a single canonical text representation.
             columns = {row["name"] for row in db.execute("PRAGMA table_info(chunks)")}
             needs_rebuild = "search_text" not in columns
             if needs_rebuild:
@@ -105,27 +119,56 @@ class SQLiteStore:
         metadata: dict[str, Any],
         chunks: list[str],
     ) -> bool:
+        return self.upsert_documents_batch([{
+            "document_id": document_id,
+            "title": title,
+            "source": source,
+            "metadata": metadata,
+            "chunks": chunks,
+        }])[0]
+
+    def upsert_documents_batch(self, documents: list[dict[str, Any]]) -> list[bool]:
+        """Upsert multiple documents atomically; return whether each already existed."""
+        if not documents:
+            return []
+        identifiers = [item["document_id"] for item in documents]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("A batch cannot contain duplicate document_id values.")
+        if any(not item["chunks"] for item in documents):
+            raise ValueError("Every document must contain at least one indexable chunk.")
+
+        replaced: list[bool] = []
         with self._connect() as db:
-            existed = db.execute(
-                "SELECT 1 FROM documents WHERE document_id=?", (document_id,)
-            ).fetchone() is not None
-            db.execute(
-                """
-                INSERT INTO documents(document_id,title,source,metadata_json)
-                VALUES(?,?,?,?)
-                ON CONFLICT(document_id) DO UPDATE SET
-                    title=excluded.title, source=excluded.source,
-                    metadata_json=excluded.metadata_json, updated_at=CURRENT_TIMESTAMP
-                """,
-                (document_id, title, source, json.dumps(metadata, ensure_ascii=False)),
-            )
-            db.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
-            db.executemany(
-                "INSERT INTO chunks(chunk_id,document_id,chunk_index,text,search_text) VALUES(?,?,?,?,?)",
-                [(f"{document_id}:{i}", document_id, i, chunk, normalize_text(chunk))
-                 for i, chunk in enumerate(chunks)],
-            )
-        return existed
+            for item in documents:
+                document_id = item["document_id"]
+                existed = db.execute(
+                    "SELECT 1 FROM documents WHERE document_id=?", (document_id,)
+                ).fetchone() is not None
+                db.execute(
+                    """
+                    INSERT INTO documents(document_id,title,source,metadata_json)
+                    VALUES(?,?,?,?)
+                    ON CONFLICT(document_id) DO UPDATE SET
+                        title=excluded.title, source=excluded.source,
+                        metadata_json=excluded.metadata_json, updated_at=CURRENT_TIMESTAMP
+                    """,
+                    (
+                        document_id,
+                        item["title"],
+                        item.get("source"),
+                        json.dumps(item.get("metadata", {}), ensure_ascii=False),
+                    ),
+                )
+                db.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
+                db.executemany(
+                    "INSERT INTO chunks(chunk_id,document_id,chunk_index,text,search_text) VALUES(?,?,?,?,?)",
+                    [
+                        (f"{document_id}:{index}", document_id, index, chunk, normalize_text(chunk))
+                        for index, chunk in enumerate(item["chunks"])
+                    ],
+                )
+                replaced.append(existed)
+        return replaced
 
     def list_documents(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         with self._connect() as db:
@@ -156,10 +199,15 @@ class SQLiteStore:
 
     def search_chunks(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         """Retrieve only matching chunks from the persistent full-text index."""
+        if top_k < 1:
+            return []
         terms = tokenize(query)
         if not terms:
             return []
-        match_query = " OR ".join('"'+term.replace('"', '""')+'"' for term in dict.fromkeys(terms))
+        match_query = " OR ".join(
+            '"' + term.replace('"', '""') + '"'
+            for term in dict.fromkeys(terms)
+        )
         with self._connect() as db:
             rows = db.execute(
                 """
@@ -173,7 +221,7 @@ class SQLiteStore:
                 ORDER BY bm25(chunks_fts, 0.0, 1.0), c.chunk_id
                 LIMIT ?
                 """,
-                (match_query, top_k),
+                (match_query, min(top_k, 100)),
             ).fetchall()
         return [
             {**dict(row), "metadata": json.loads(row["metadata_json"])}
