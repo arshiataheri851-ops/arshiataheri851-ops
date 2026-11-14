@@ -10,6 +10,8 @@ from .answering import build_grounded_answer
 from .chunking import split_text
 from .config import Settings, get_settings
 from .evaluation import evaluate_retrieval
+from .observability import audit_event, instrument_api, metrics_response
+from .postgres_store import PostgresStore
 from .retrieval import BM25Retriever
 from .schemas import (
     BatchIngestResponse,
@@ -22,8 +24,6 @@ from .schemas import (
     QueryIn,
     QueryResponse,
 )
-from .observability import audit_event, instrument_api, metrics_response
-from .postgres_store import PostgresStore
 from .store import SQLiteStore, TenantDocumentConflict
 
 
