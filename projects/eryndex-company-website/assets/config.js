@@ -1,0 +1,1 @@
+// Set this to the deployed HTTPS Cloudflare Worker URL only after deployment and testing.\nwindow.ERYNDEX_CONTACT_ENDPOINT = '';\n
