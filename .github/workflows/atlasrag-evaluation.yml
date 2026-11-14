@@ -63,6 +63,13 @@ jobs:
           ATLASRAG_DB_PASSWORD: atlasrag-ci-compose-password
           ATLASRAG_TENANT_API_KEYS_JSON: '{"ci":"ci-only-atlasrag-tenant-key-0123456789"}'
         run: docker compose up --build -d atlasrag
+      - name: Inspect container startup
+        env:
+          ATLASRAG_DB_PASSWORD: atlasrag-ci-compose-password
+          ATLASRAG_TENANT_API_KEYS_JSON: '{"ci":"ci-only-atlasrag-tenant-key-0123456789"}'
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=100 atlasrag-db atlasrag
       - name: Wait for healthy API
         run: |
           python - <<'PY'
