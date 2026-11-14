@@ -9,17 +9,23 @@ has been provisioned.
 
 - AtlasRAG API: loopback only on host port 8002.
 - PostgreSQL 16: private Compose network only; no host port is published.
-- FTS: PostgreSQL `tsvector` with a GIN index and the `simple` text configuration.
+- Lexical FTS: PostgreSQL `tsvector` with a GIN index and the `simple` text configuration.
   Persian/Arabic normalization happens before indexing and querying.
+- Semantic retrieval: pgvector `vector(384)`, cosine distance, and HNSW index.
+  FastEmbed runs the multilingual-e5-small ONNX model locally; no third-party
+  embedding API receives indexed document text.
+- Hybrid ranking: reciprocal-rank fusion of tenant-scoped lexical and vector
+  candidates. Existing rows need a one-time vector backfill.
 - Nginx: host-level HTTPS reverse proxy, rate limits, request-size limits.
 - Prometheus: optional profile, loopback-only UI, bearer-token-protected scrape.
 - RelayForge: loopback-only API; producer/operator keys are separate; worker stays
   disabled until egress controls have been verified.
 
-The PostgreSQL FTS implementation is lexical, not semantic/vector search. It is
-an indexed, multi-tenant production-capable baseline. Do not claim semantic
-retrieval quality until an embedding model and hybrid/vector evaluation have
-been selected and validated against representative judged data.
+The PostgreSQL backend supports hybrid lexical + semantic vector retrieval.
+The embedding model is multilingual-e5-small (384 dimensions), run locally by
+FastEmbed. This is a technical implementation, not a quality guarantee: run the
+human-judged evaluation on authorized Persian/multilingual documents before
+making retrieval-quality claims.
 
 ## 2. Create local deployment secrets
 
@@ -113,6 +119,14 @@ conflict aborts the whole import. The source file is never deleted.
 docker compose exec atlasrag python scripts/migrate_sqlite_to_postgres.py \
   --sqlite-path /srv/app/migration/atlasrag.sqlite3
 ```
+
+After migrating legacy data, backfill semantic vectors:
+
+```bash
+docker compose exec atlasrag python scripts/backfill_embeddings.py --batch-size 64
+```
+
+The backfill is repeatable and updates only chunks whose embedding is NULL.
 
 5. Verify document/chunk totals and test retrieval using the migrated tenant's
    key. Keep the original SQLite file and its backup until the restore plan has
@@ -276,6 +290,7 @@ separate Persian/multilingual relevance study.
 - [ ] Audit logs contain no API keys, document text, or raw queries.
 - [ ] Encrypted off-host backups and restore drill completed.
 - [ ] Target-host load test and resource limits reviewed.
-- [ ] Representative human-judged retrieval evaluation reviewed.
+- [ ] Existing document vectors backfilled and vector index verified.
+- [ ] Representative human-judged hybrid retrieval evaluation reviewed.
 - [ ] FarsiPulse staging/pilot controls and rollback tested.
 - [ ] Public deployment explicitly approved by the owner.

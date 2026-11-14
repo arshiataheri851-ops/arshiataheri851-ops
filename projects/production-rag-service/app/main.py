@@ -54,8 +54,17 @@ def create_app(
     retriever: BM25Retriever | None = None,
 ) -> FastAPI:
     cfg = settings or get_settings()
+    semantic_embedder = None
+    if store is None and cfg.database_url and cfg.semantic_search_enabled:
+        from .embeddings import FastEmbedder
+
+        semantic_embedder = FastEmbedder(
+            model_name=cfg.embedding_model,
+            cache_dir=cfg.embedding_cache_dir,
+        )
     database = store or (
-        PostgresStore(cfg.database_url) if cfg.database_url else SQLiteStore(cfg.database_path)
+        PostgresStore(cfg.database_url, embedder=semantic_embedder)
+        if cfg.database_url else SQLiteStore(cfg.database_path)
     )
     ranker = retriever or BM25Retriever()
 
@@ -110,7 +119,9 @@ def create_app(
 
     def retrieve(question: str, top_k: int, request: Request, tenant_id: str) -> list[dict]:
         storage = request.app.state.store
-        if hasattr(storage, "search_chunks"):
+        if hasattr(storage, "search_hybrid_chunks"):
+            results = storage.search_hybrid_chunks(question, top_k, tenant_id=tenant_id)
+        elif hasattr(storage, "search_chunks"):
             results = storage.search_chunks(question, top_k, tenant_id=tenant_id)
         else:
             results = request.app.state.retriever.search(

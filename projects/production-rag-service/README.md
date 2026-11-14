@@ -10,20 +10,26 @@ citations, and evaluation are scoped to that tenant.
 ## Architecture
 
 - **Production database:** PostgreSQL 16.
-- **Search index:** PostgreSQL full-text search with a GIN index over normalized
+- **Lexical search:** PostgreSQL full-text search with a GIN index over normalized
   `tsvector` content using the `simple` text configuration.
+- **Semantic search:** pgvector cosine similarity with a 384-dimensional
+  multilingual-e5-small embedding model; HNSW approximate-nearest-neighbour index.
+- **Hybrid ranking:** reciprocal-rank fusion combines tenant-filtered lexical and
+  dense candidates; citations retain the source chunk and document metadata.
 - **Language handling:** NFKC normalization, Persian Yeh/Kaf normalization,
   Arabic character normalization, and ZWNJ handling before indexing/search.
 - **Local fallback:** SQLite FTS5 remains available for unit tests and local-only
-  development; Docker Compose runs PostgreSQL.
+  development; Docker Compose runs PostgreSQL with pgvector.
 - **API:** FastAPI with API-key authentication and fail-closed configuration.
 - **Observability:** privacy-preserving JSON audit events and a
   bearer-token-protected Prometheus endpoint.
 
-**Search scope:** the current engine is lexical full-text search. It does not
-yet use vector embeddings or claim semantic retrieval. A hybrid/vector backend
-requires a separately selected embedding model and representative, judged
-Persian/multilingual relevance evaluation.
+**Search scope:** PostgreSQL deployments can use hybrid lexical + dense semantic
+retrieval. The default model is `intfloat/multilingual-e5-small` (384 dimensions),
+run locally through FastEmbed/ONNX; no external embedding API receives document
+text. The model is multilingual and suitable for Persian evaluation, but quality
+must be measured on the target corpus before making customer-facing claims.
+SQLite remains lexical-only.
 
 ## Security and tenant isolation
 
@@ -139,6 +145,10 @@ Actions starts PostgreSQL 16, runs those integration tests, and benchmarks
 the GIN-indexed backend on a synthetic 1,000-document corpus. The separate
 Docker Compose smoke test validates authenticated ingestion, retrieval,
 citations, and PostgreSQL readiness.
+
+For existing PostgreSQL data, run `python scripts/backfill_embeddings.py`
+inside the AtlasRAG container after enabling semantic search. It fills missing
+vectors in bounded batches without changing document text.
 
 The synthetic benchmark is a reproducible index/latency regression baseline,
 not evidence of semantic quality on customer data. It creates and deletes its
