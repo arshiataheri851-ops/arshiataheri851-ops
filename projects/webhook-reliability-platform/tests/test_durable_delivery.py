@@ -2,6 +2,7 @@ import time
 
 from fastapi.testclient import TestClient
 
+import app.sender as sender_module
 from app.dispatcher import WebhookDispatcher
 from app.main import create_app
 from app.sender import HttpxWebhookSender
@@ -111,7 +112,81 @@ def test_worker_requires_a_real_sender():
         raise AssertionError("worker must not start without a configured sender")
 
 
-def test_http_sender_rejects_non_allowlisted_host_before_network_access():
+def _dns_record(address: str):
+    import socket
+
+    family = socket.AF_INET6 if ":" in address else socket.AF_INET
+    sockaddr = (address, 443, 0, 0) if family == socket.AF_INET6 else (address, 443)
+    return (family, socket.SOCK_STREAM, 6, "", sockaddr)
+
+
+def test_http_sender_pins_connection_to_validated_dns_address(monkeypatch):
+    observed = {}
+
+    class FakeResponse:
+        status = 202
+
+    class FakeConnection:
+        def __init__(self, hostname, port, address, timeout_seconds):
+            observed.update(hostname=hostname, port=port, address=address, timeout=timeout_seconds)
+
+        def request(self, method, target, body, headers):
+            observed.update(method=method, target=target, body=body, headers=headers)
+
+        def getresponse(self):
+            return FakeResponse()
+
+        def close(self):
+            observed["closed"] = True
+
+    monkeypatch.setattr(sender_module.socket, "getaddrinfo", lambda *a, **k: [
+        _dns_record("93.184.216.34")
+    ])
+    monkeypatch.setattr(sender_module, "_PinnedHTTPSConnection", FakeConnection)
+    sender = HttpxWebhookSender({"hooks.example.com"})
+    result = sender(
+        "https://hooks.example.com/orders?region=eu",
+        '{"order":42}',
+        {"X-Webhook-Signature": "sig"},
+    )
+
+    assert result == 202
+    assert observed["hostname"] == "hooks.example.com"
+    assert observed["port"] == 443
+    assert observed["address"] == "93.184.216.34"
+    assert observed["target"] == "/orders?region=eu"
+    assert observed["body"] == b'{"order":42}'
+    assert observed["headers"]["Connection"] == "close"
+    assert observed["closed"] is True
+
+
+def test_http_sender_rejects_mixed_public_and_private_dns_answers(monkeypatch):
+    monkeypatch.setattr(sender_module.socket, "getaddrinfo", lambda *a, **k: [
+        _dns_record("93.184.216.34"),
+        _dns_record("10.0.0.8"),
+    ])
+
+    def must_not_connect(*args, **kwargs):
+        raise AssertionError("connection must not be attempted for mixed DNS answers")
+
+    monkeypatch.setattr(sender_module, "_PinnedHTTPSConnection", must_not_connect)
+    sender = HttpxWebhookSender({"hooks.example.com"})
+    try:
+        try:
+            sender("https://hooks.example.com/hook", "{}", {})
+        except ValueError as exc:
+            assert "non-public" in str(exc)
+        else:
+            raise AssertionError("private DNS answer must be rejected")
+    finally:
+        sender.close()
+
+
+def test_http_sender_rejects_non_allowlisted_host_before_dns(monkeypatch):
+    def dns_must_not_run(*args, **kwargs):
+        raise AssertionError("DNS must not run for a non-allowlisted host")
+
+    monkeypatch.setattr(sender_module.socket, "getaddrinfo", dns_must_not_run)
     sender = HttpxWebhookSender({"hooks.example.com"})
     try:
         try:
@@ -120,6 +195,19 @@ def test_http_sender_rejects_non_allowlisted_host_before_network_access():
             assert "allowlisted" in str(exc)
         else:
             raise AssertionError("unapproved hostname should be rejected")
+    finally:
+        sender.close()
+
+
+def test_http_sender_rejects_nonstandard_https_port():
+    sender = HttpxWebhookSender({"hooks.example.com"})
+    try:
+        try:
+            sender("https://hooks.example.com:8443/hook", "{}", {})
+        except ValueError as exc:
+            assert "port 443" in str(exc)
+        else:
+            raise AssertionError("non-standard ports must be rejected")
     finally:
         sender.close()
 
