@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import Response
@@ -58,6 +59,16 @@ def create_app(
     )
     ranker = retriever or BM25Retriever()
 
+    close_database = getattr(database, "close", None)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        try:
+            yield
+        finally:
+            if close_database:
+                close_database()
+
     api = FastAPI(
         title="AtlasRAG — Tenant-isolated Evidence Retrieval API",
         version="2.0.0",
@@ -67,14 +78,12 @@ def create_app(
         ),
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
     api.state.settings = cfg
     api.state.store = database
     api.state.retriever = ranker
     instrument_api(api)
-    close_database = getattr(database, "close", None)
-    if close_database:
-        api.add_event_handler("shutdown", close_database)
 
     def ingest_one(payload: DocumentIn, request: Request, tenant_id: str) -> IngestResponse:
         current_settings = request.app.state.settings
