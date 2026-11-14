@@ -78,4 +78,4 @@ jobs:
           node --check contact-api/worker.js
       - name: Check local HTML links, assets and anchors
         working-directory: projects/eryndex-company-website
-        run: python -m tests.check_site
+        run: python tests/check_site.py
