@@ -1,8 +1,10 @@
 import logging
+import secrets
 from collections.abc import Sequence
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import APIKeyHeader
 
 from app.config import Settings, get_settings
 from app.normalization import normalize_persian_text
@@ -16,6 +18,7 @@ from app.schemas import (
 
 logger = logging.getLogger(__name__)
 API_VERSION = "1.0.0"
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def create_app(
@@ -27,11 +30,17 @@ def create_app(
         title="FarsiPulse — Persian Sentiment Intelligence API",
         description=(
             "Binary Persian review sentiment inference with conservative text normalization "
-            "and a lazily loaded, revision-pinned Hugging Face model."
+            "and a lazily loaded, revision-pinned Hugging Face model. "
+            "Set SENTIMENT_API_KEY to require X-API-Key on inference routes."
         ),
         version=API_VERSION,
     )
     app.state.predictor = predictor or HuggingFaceSentimentPredictor(app_settings)
+
+    def require_api_key(candidate: str | None = Depends(api_key_header)) -> None:
+        expected = app_settings.api_key
+        if expected and (candidate is None or not secrets.compare_digest(candidate, expected)):
+            raise HTTPException(status_code=401, detail="A valid X-API-Key header is required.")
 
     @app.get("/", tags=["service"])
     def root() -> dict[str, str]:
@@ -52,7 +61,12 @@ def create_app(
             "model_revision": app_settings.model_revision,
         }
 
-    @app.post("/v1/sentiment", response_model=SentimentOutput, tags=["inference"])
+    @app.post(
+        "/v1/sentiment",
+        response_model=SentimentOutput,
+        tags=["inference"],
+        dependencies=[Depends(require_api_key)],
+    )
     def predict_one(payload: SentimentInput, request: Request) -> SentimentOutput:
         normalized = normalize_persian_text(payload.text)
         try:
@@ -77,6 +91,7 @@ def create_app(
         "/v1/sentiment/batch",
         response_model=BatchSentimentOutput,
         tags=["inference"],
+        dependencies=[Depends(require_api_key)],
     )
     def predict_batch(payload: BatchSentimentInput, request: Request) -> BatchSentimentOutput:
         normalized_texts: Sequence[str] = [

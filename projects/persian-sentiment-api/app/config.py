@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_MODEL_ID = "HooshvareLab/bert-fa-base-uncased-sentiment-snappfood"
@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     model_id: str = DEFAULT_MODEL_ID
     model_revision: str = DEFAULT_MODEL_REVISION
     max_sequence_length: int = Field(default=512, ge=8, le=512)
+    inference_batch_size: int = Field(default=16, ge=1, le=32)
+    cpu_threads: int = Field(default=2, ge=1, le=16)
+    api_key: str | None = Field(default=None, min_length=32)
+    require_api_key: bool = False
+
+    @model_validator(mode="after")
+    def require_key_when_protected(self) -> "Settings":
+        if self.require_api_key and not self.api_key:
+            raise ValueError("SENTIMENT_API_KEY must be configured when SENTIMENT_REQUIRE_API_KEY=true")
+        return self
 
 
 @lru_cache

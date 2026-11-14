@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 
+TEST_API_KEY = "test-only-secret-value-at-least-32-chars"
+
 
 class FakePredictor:
     is_loaded = True
@@ -24,8 +26,12 @@ class FakePredictor:
         return results
 
 
-def make_client() -> TestClient:
-    settings = Settings(model_id="test-model", model_revision="test-revision")
+def make_client(api_key: str | None = None) -> TestClient:
+    settings = Settings(
+        model_id="test-model",
+        model_revision="test-revision",
+        api_key=api_key,
+    )
     return TestClient(create_app(settings=settings, predictor=FakePredictor()))
 
 
@@ -71,3 +77,75 @@ def test_batch_limit_is_enforced() -> None:
     items = [{"text": "خوب"} for _ in range(33)]
     response = make_client().post("/v1/sentiment/batch", json={"items": items})
     assert response.status_code == 422
+
+
+def test_api_key_is_required_when_configured() -> None:
+    client = make_client(api_key=TEST_API_KEY)
+    response = client.post("/v1/sentiment", json={"text": "کیفیت عالی بود"})
+    assert response.status_code == 401
+
+
+def test_valid_api_key_allows_inference() -> None:
+    client = make_client(api_key=TEST_API_KEY)
+    response = client.post(
+        "/v1/sentiment",
+        headers={"X-API-Key": TEST_API_KEY},
+        json={"text": "کیفیت عالی بود"},
+    )
+    assert response.status_code == 200
+
+
+def test_invalid_api_key_is_rejected() -> None:
+    client = make_client(api_key=TEST_API_KEY)
+    response = client.post(
+        "/v1/sentiment",
+        headers={"X-API-Key": "wrong-secret"},
+        json={"text": "کیفیت عالی بود"},
+    )
+    assert response.status_code == 401
+
+
+def test_api_key_must_be_long_enough() -> None:
+    try:
+        Settings(api_key="too-short")
+    except ValueError:
+        return
+    raise AssertionError("Short API keys must be rejected.")
+
+
+def test_api_key_is_required_for_batch_prediction():
+    client = make_client(api_key=TEST_API_KEY)
+    payload = {"items": [{"text": "کیفیت عالی بود"}]}
+
+    missing = client.post("/v1/sentiment/batch", json=payload)
+    assert missing.status_code == 401
+
+    invalid = client.post(
+        "/v1/sentiment/batch",
+        headers={"X-API-Key": "wrong-secret"},
+        json=payload,
+    )
+    assert invalid.status_code == 401
+
+    valid = client.post(
+        "/v1/sentiment/batch",
+        headers={"X-API-Key": TEST_API_KEY},
+        json=payload,
+    )
+    assert valid.status_code == 200
+    assert valid.json()["count"] == 1
+    assert valid.json()["predictions"][0]["sentiment"] == "positive"
+
+
+def test_protected_mode_refuses_to_start_without_api_key() -> None:
+    try:
+        Settings(require_api_key=True)
+    except ValueError as exc:
+        assert "SENTIMENT_API_KEY" in str(exc)
+        return
+    raise AssertionError("Protected mode must fail closed without an API key.")
+
+
+def test_protected_mode_accepts_configured_api_key() -> None:
+    settings = Settings(api_key=TEST_API_KEY, require_api_key=True)
+    assert settings.require_api_key is True
