@@ -38,6 +38,7 @@ jobs:
           {
             echo "ATLASRAG_DB_PASSWORD=$(openssl rand -hex 32)"
             printf 'ATLASRAG_TENANT_API_KEYS_JSON={"ci-tenant":"%s"}\n' "$atlasrag_tenant_key"
+            printf 'ATLASRAG_CI_API_KEY=%s\n' "$atlasrag_tenant_key"
             echo "SENTIMENT_API_KEY=$(openssl rand -hex 32)"
             echo "RELAYFORGE_API_TOKEN=$(openssl rand -hex 32)"
             echo "RELAYFORGE_OPERATOR_TOKEN=$(openssl rand -hex 32)"
