@@ -169,3 +169,37 @@ def test_fastapi_application_uses_postgres_backend_and_closes_pool(postgres_stor
             assert result.json()["citations"][0]["document_id"] == document_id
     finally:
         postgres_store.delete_document(document_id, tenant_id=tenant_id)
+
+
+def test_postgres_hybrid_retrieval_finds_semantic_match_without_lexical_overlap():
+    suffix = uuid4().hex
+    tenant_id = f"semantic_{suffix}"
+    document_id = f"semantic-doc-{suffix}"
+    expected_vector = [1.0] + [0.0] * 383
+    store = PostgresStore(
+        DATABASE_URL,
+        passage_embedding_function=lambda texts: [expected_vector for _ in texts],
+        query_embedding_function=lambda query: expected_vector,
+    )
+    try:
+        store.upsert_document(
+            document_id,
+            "موقعیت دفتر",
+            "test://semantic",
+            {"kind": "semantic-integration"},
+            ["نشانی محل کار در خیابان اصلی قرار دارد."],
+            tenant_id=tenant_id,
+        )
+        results = store.search_chunks(
+            "where is the office location", 5, tenant_id=tenant_id
+        )
+        assert store.retrieval_method == "postgresql_hybrid_rrf"
+        assert results
+        assert results[0]["document_id"] == document_id
+        assert results[0]["score"] > 0
+        assert store.search_chunks(
+            "where is the office location", 5, tenant_id=f"other_{suffix}"
+        ) == []
+    finally:
+        store.delete_document(document_id, tenant_id=tenant_id)
+        store.close()

@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   atlasrag-db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: atlasrag
       POSTGRES_USER: atlasrag
@@ -51,8 +51,12 @@ services:
       RAG_AUTH_REQUIRED: "true"
       RAG_TENANT_API_KEYS_JSON: ${ATLASRAG_TENANT_API_KEYS_JSON:-}
       RAG_METRICS_TOKEN: ${ATLASRAG_METRICS_TOKEN:-}
+      RAG_SEMANTIC_ENABLED: "true"
+      RAG_EMBEDDING_MODEL_NAME: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      RAG_EMBEDDING_CACHE_DIR: /srv/app/.cache/fastembed
     volumes:
       - ./migration:/srv/app/migration:ro
+      - atlasrag-model-cache:/srv/app/.cache/fastembed
     depends_on:
       atlasrag-db:
         condition: service_healthy
@@ -118,5 +122,6 @@ services:
 volumes:
   farsipulse-model-cache:
   atlasrag-postgres-data:
+  atlasrag-model-cache:
   relayforge-data:
   prometheus-data:

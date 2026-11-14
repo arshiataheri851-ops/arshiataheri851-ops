@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     auth_required: bool = True
     tenant_api_keys_json: str = ""
     metrics_token: str = ""
+    semantic_enabled: bool = False
+    embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_cache_dir: str = "/home/app/.cache/fastembed"
     chunk_size: int = Field(default=700, ge=50, le=5_000)
     chunk_overlap: int = Field(default=100, ge=0, le=4_999)
     max_document_chars: int = Field(default=100_000, ge=1_000, le=1_000_000)
@@ -34,6 +37,10 @@ class Settings(BaseSettings):
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         if self.default_top_k > self.max_top_k:
             raise ValueError("default_top_k cannot exceed max_top_k")
+        if self.semantic_enabled and not self.database_url:
+            raise ValueError("semantic retrieval requires the PostgreSQL backend")
+        if not self.embedding_model_name.strip():
+            raise ValueError("embedding_model_name must not be empty")
         try:
             keys = json.loads(self.tenant_api_keys_json) if self.tenant_api_keys_json else {}
         except json.JSONDecodeError as exc:
