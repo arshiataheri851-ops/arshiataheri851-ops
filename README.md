@@ -100,6 +100,19 @@ A FastAPI recommendation service with SQLite interaction history, weighted view/
 
 A responsive sports retail storefront concept featuring product search, category filters, sorting, wishlist, interactive shopping bag, subtotal calculation, and a clearly labelled demo checkout. Built with HTML, CSS, and vanilla JavaScript; no payment processing or real order handling is claimed.
 
+
+
+## Additional web applications
+
+### 11. [RoutePilot — Fleet & Delivery Operations MVP](projects/routepilot/README.md)
+An executable fleet and delivery workflow MVP with a FastAPI + SQLite backend and browser dashboard. Includes delivery creation and status tracking, proof-of-delivery metadata, and simulated vehicle positions. It is an MVP: no authentication, tenant isolation, or live vehicle hardware integration is included.
+
+### 12. [SignalDesk — Service Operations Intelligence MVP](projects/signaldesk/README.md)
+An executable service-desk MVP with a FastAPI + SQLite backend. Supports ticket creation, assignment, priority and SLA-risk filters, status changes, and per-ticket audit history. Prioritization is deterministic and rule-based, not an AI prediction; authentication and tenant isolation are not implemented.
+
+### 13. [ERYNDEX — Bilingual Company Website](projects/eryndex-company-website/README.md)
+A responsive English/Persian B2B company website with service pages, project case studies, and a contact interface. The Cloudflare Worker source is included, but the contact service is not considered live until deployed, configured, and tested. See its README for security and launch requirements.
+
 ## Profile branding
 
 - [Profile avatar artwork (SVG)](assets/profile-avatar.svg)
