@@ -20,7 +20,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 def db():
-    c=sqlite3.connect(DB);c.row_factory=sqlite3.Row;return c
+    c=sqlite3.connect(DB)
+    c.row_factory=sqlite3.Row
+    c.execute("PRAGMA foreign_keys=ON")
+    return c
 
 def init():
     with db() as c:
