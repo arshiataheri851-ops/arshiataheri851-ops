@@ -71,3 +71,14 @@ def test_tenant_api_keys_must_be_strong_unique_ascii_values():
     for mapping in (weak, duplicate, non_ascii):
         with pytest.raises(ValidationError):
             Settings(auth_required=True, tenant_api_keys_json=mapping)
+
+
+def test_metrics_endpoint_requires_its_own_secret_and_exposes_no_tenant_content(client):
+    assert client.get("/metrics").status_code == 401
+    response = client.get(
+        "/metrics",
+        headers={"Authorization": "Bearer test-metrics-token-0123456789-abcdef"},
+    )
+    assert response.status_code == 200
+    assert "atlasrag_http_requests_total" in response.text
+    assert "test-tenant-a-key" not in response.text
