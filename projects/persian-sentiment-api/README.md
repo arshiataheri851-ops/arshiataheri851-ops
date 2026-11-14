@@ -123,7 +123,7 @@ The current result supports a private staging deployment or a limited monitored 
 
 ## Shared local Docker Compose stack
 
-From the repository root, copy `.env.example` to `.env` and set `SENTIMENT_API_KEY` to an independently generated random secret of at least 32 characters before starting FarsiPulse with Compose. Compose sets `SENTIMENT_REQUIRE_API_KEY=true`, so the service refuses to start if the key is missing or too short. Do not commit `.env`. All demo ports bind to loopback only. AtlasRAG requires configured per-tenant API keys and enforces tenant-scoped document access; it remains a single-node SQLite service. RelayForge requires separate producer and operator tokens.
+From the repository root, copy `.env.example` to `.env` and set `SENTIMENT_API_KEY` to an independently generated random secret of at least 32 characters before starting FarsiPulse with Compose. Compose sets `SENTIMENT_REQUIRE_API_KEY=true`, so the service refuses to start if the key is missing or too short. Do not commit `.env`. All demo ports bind to loopback only. AtlasRAG now uses PostgreSQL 16 with a GIN-indexed full-text search backend and configured per-tenant API keys; see the production runbook in the repository for deployment details. RelayForge requires separate producer and operator tokens.
 
 ## Docker and deployment
 
