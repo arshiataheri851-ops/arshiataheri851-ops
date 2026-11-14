@@ -21,8 +21,8 @@ from .schemas import (
     QueryIn,
     QueryResponse,
 )
-from .store import SQLiteStore, TenantDocumentConflict
 from .postgres_store import PostgresStore
+from .store import SQLiteStore, TenantDocumentConflict
 
 
 def resolve_tenant(
@@ -47,7 +47,7 @@ def resolve_tenant(
 
 def create_app(
     settings: Settings | None = None,
-    store: SQLiteStore | None = None,
+    store: SQLiteStore | PostgresStore | None = None,
     retriever: BM25Retriever | None = None,
 ) -> FastAPI:
     cfg = settings or get_settings()
