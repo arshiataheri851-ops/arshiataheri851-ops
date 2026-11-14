@@ -70,7 +70,7 @@ python projects/production-rag-service/scripts/smoke_test.py --base-url http://1
 
 Open `http://127.0.0.1:8002/docs` for the interactive API. Stop the service with `docker compose down`; the named volume remains. To remove demo data too, use `docker compose down -v`.
 
-The Compose setup is for local evaluation only. The API currently has no user authentication or tenant isolation; do not expose it to the public internet or load confidential customer documents.
+The Compose setup binds demo services to loopback only. AtlasRAG currently has no user authentication or tenant isolation; do not expose it beyond the local machine or load confidential customer documents. FarsiPulse in the shared stack requires a configured `SENTIMENT_API_KEY` and fails closed if it is missing. RelayForge also fails closed on protected routes until its independent producer and operator tokens are configured.
 
 ## API workflow
 
