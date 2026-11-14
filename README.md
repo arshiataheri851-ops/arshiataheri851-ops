@@ -102,6 +102,14 @@ A responsive sports retail storefront concept featuring product search, category
 
 
 
+## Live product websites
+
+- [FarsiPulse — Open website](https://farsipulse.onrender.com) · [Source](projects/persian-sentiment-api/site/index.html)
+- [AtlasRAG — Open website](https://atlasrag-6eab.onrender.com) · [Source](projects/production-rag-service/site/index.html)
+- [RelayForge — Open website](https://relayforge-rcpo.onrender.com) · [Source](projects/webhook-reliability-platform/site/index.html)
+
+Deployment notes and API integration boundaries: [PRODUCT_SITES.md](PRODUCT_SITES.md).
+
 ## Additional engineering implementations
 
 ### 11. [Agent Workflow Orchestrator](projects/agent-workflow-orchestrator/README.md)

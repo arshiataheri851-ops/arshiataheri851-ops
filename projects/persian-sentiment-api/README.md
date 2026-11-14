@@ -1,5 +1,8 @@
 # FarsiPulse — Persian Sentiment Intelligence API
 
+
+🌐 **Live product website:** [Open FarsiPulse](https://farsipulse.onrender.com)
+
 [![CI](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/engineering-projects-ci.yml)
 [![Real inference](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-real-inference.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-real-inference.yml)
 [![Model evaluation](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-evaluation.yml/badge.svg)](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/workflows/farsipulse-evaluation.yml)
