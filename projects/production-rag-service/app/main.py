@@ -116,19 +116,40 @@ def create_app(
         payload: DocumentBatchIn, request: Request
     ) -> BatchIngestResponse:
         current_settings = request.app.state.settings
+        prepared = []
         for document in payload.documents:
             if len(document.text) > current_settings.max_document_chars:
                 raise HTTPException(
                     status_code=413,
                     detail=f"Document '{document.document_id}' exceeds the configured size limit.",
                 )
-            if not split_text(document.text, current_settings.chunk_size,
-                              current_settings.chunk_overlap):
+            chunks = split_text(
+                document.text, current_settings.chunk_size, current_settings.chunk_overlap
+            )
+            if not chunks:
                 raise HTTPException(
                     status_code=422,
                     detail=f"Document '{document.document_id}' contains no indexable text.",
                 )
-        results = [ingest_one(document, request) for document in payload.documents]
+            prepared.append({
+                "document_id": document.document_id,
+                "title": document.title,
+                "source": document.source,
+                "metadata": document.metadata,
+                "chunks": [chunk.text for chunk in chunks],
+            })
+
+        replaced = request.app.state.store.upsert_documents_batch(prepared)
+        results = [
+            IngestResponse(
+                document_id=document.document_id,
+                chunks_created=len(item["chunks"]),
+                replaced_existing=was_replaced,
+            )
+            for document, item, was_replaced in zip(
+                payload.documents, prepared, replaced, strict=True
+            )
+        ]
         return BatchIngestResponse(accepted=len(results), results=results)
 
     @api.get("/v1/documents", tags=["documents"])
