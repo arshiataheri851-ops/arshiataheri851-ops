@@ -1,5 +1,6 @@
 """AtlasRAG: tenant-isolated, citation-first retrieval API."""
 
+import hashlib
 import hmac
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
@@ -30,12 +31,17 @@ def resolve_tenant(
     settings = request.app.state.settings
     if not settings.auth_required:
         return "local"
-    if not x_api_key:
+    if not x_api_key or not 32 <= len(x_api_key) <= 256 or not x_api_key.isascii():
         raise HTTPException(status_code=401, detail="A valid X-API-Key header is required.")
+    supplied_digest = hashlib.sha256(x_api_key.encode("ascii")).digest()
+    matched_tenant = None
     for tenant_id, expected_key in settings.tenant_api_keys.items():
-        if hmac.compare_digest(x_api_key, expected_key):
-            return tenant_id
-    raise HTTPException(status_code=401, detail="Invalid API key.")
+        expected_digest = hashlib.sha256(expected_key.encode("ascii")).digest()
+        if hmac.compare_digest(supplied_digest, expected_digest):
+            matched_tenant = tenant_id
+    if matched_tenant is None:
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+    return matched_tenant
 
 
 def create_app(
