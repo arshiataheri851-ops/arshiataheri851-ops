@@ -7,6 +7,8 @@ limit_req_zone $binary_remote_addr zone=atlasrag_rate:10m rate=5r/s;
 limit_req_zone $binary_remote_addr zone=farsipulse_rate:10m rate=2r/s;
 limit_req_zone $binary_remote_addr zone=relayforge_rate:10m rate=10r/s;
 limit_conn_zone $binary_remote_addr zone=per_client_conn:10m;
+limit_req_status 429;
+limit_conn_status 429;
 
 server {
     listen 80;
@@ -32,6 +34,7 @@ server {
     add_header Referrer-Policy no-referrer always;
 
     location = /metrics {
+        allow 127.0.0.1;
         allow 10.0.0.0/8;
         allow 172.16.0.0/12;
         allow 192.168.0.0/16;
