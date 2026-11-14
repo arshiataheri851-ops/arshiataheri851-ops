@@ -81,3 +81,38 @@ def test_batch_upsert_rolls_back_all_documents_on_error():
         raise AssertionError("invalid metadata should abort the complete batch")
     assert store.count_documents() == 0
     assert store.search_chunks("first anchor", 3) == []
+
+
+def test_legacy_database_records_are_quarantined_from_new_tenants(tmp_path):
+    import sqlite3
+
+    path = str(tmp_path / "legacy.sqlite3")
+    connection = sqlite3.connect(path)
+    connection.executescript(
+        """
+        CREATE TABLE documents (
+            document_id TEXT PRIMARY KEY, title TEXT NOT NULL, source TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE chunks (
+            chunk_id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL REFERENCES documents(document_id) ON DELETE CASCADE,
+            chunk_index INTEGER NOT NULL, text TEXT NOT NULL,
+            UNIQUE(document_id, chunk_index)
+        );
+        INSERT INTO documents(document_id, title, source, metadata_json)
+        VALUES ('old-doc', 'Old private doc', NULL, '{}');
+        INSERT INTO chunks(chunk_id, document_id, chunk_index, text)
+        VALUES ('old-doc:0', 'old-doc', 0, 'legacy tenant confidential phrase');
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    migrated = SQLiteStore(path)
+    assert migrated.count_documents(tenant_id="tenant-a") == 0
+    assert migrated.search_chunks("legacy tenant confidential", 3, tenant_id="tenant-a") == []
+    assert migrated.count_documents(tenant_id="legacy") == 1
+    assert migrated.search_chunks("legacy tenant confidential", 3, tenant_id="legacy")
