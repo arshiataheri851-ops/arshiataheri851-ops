@@ -54,14 +54,14 @@ The API-key mapping is configuration-based, not a self-service identity or key-m
 
 Python 3.11+ with SQLite compiled with FTS5 support.
 
-From the repository root, copy `.env.example` to `.env`, replace the AtlasRAG example mapping with your own tenant ID and independently generated random API key (minimum 32 characters), then start the service:
+From the repository root, copy `.env.example` to `.env`, fill `ATLASRAG_TENANT_API_KEYS_JSON` with a JSON mapping from your tenant ID to an independently generated random API key (minimum 32 characters), then start the service:
 
 ```bash
 docker compose up --build -d atlasrag
 docker compose ps atlasrag
 ```
 
-The API is bound to `127.0.0.1:8002` and persists its database in the `atlasrag-data` named volume. The service fails to start if `ATLASRAG_TENANT_API_KEYS_JSON` is missing or invalid. Do not use the example placeholder as a real credential.
+The API is bound to `127.0.0.1:8002` and persists its database in the `atlasrag-data` named volume. The service fails to start if `ATLASRAG_TENANT_API_KEYS_JSON` is missing or invalid. The example file intentionally leaves it blank so no default credential can be used.
 
 Check health:
 
