@@ -51,6 +51,8 @@ services:
       RAG_AUTH_REQUIRED: "true"
       RAG_TENANT_API_KEYS_JSON: ${ATLASRAG_TENANT_API_KEYS_JSON:-}
       RAG_METRICS_TOKEN: ${ATLASRAG_METRICS_TOKEN:-}
+    volumes:
+      - ./migration:/srv/app/migration:ro
     depends_on:
       atlasrag-db:
         condition: service_healthy
