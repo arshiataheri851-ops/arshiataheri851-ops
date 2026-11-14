@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -5,7 +6,10 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.config import Settings
+from app.main import create_app
 from app.postgres_store import PostgresStore
 from app.store import SQLiteStore, TenantDocumentConflict
 
@@ -126,5 +130,42 @@ def test_sqlite_migration_preserves_tenant_documents_and_search(postgres_store, 
         assert rows[0]["document_id"] == document_id
         assert rows[0]["metadata"] == {"origin": "sqlite"}
         assert postgres_store.count_documents(tenant_id) == 1
+    finally:
+        postgres_store.delete_document(document_id, tenant_id=tenant_id)
+
+
+def test_fastapi_application_uses_postgres_backend_and_closes_pool(postgres_store):
+    suffix = uuid4().hex
+    tenant_id = f"api_tenant_{suffix}"
+    document_id = f"api-doc-{suffix}"
+    api_key = f"integration-api-key-{suffix}-0123456789"
+    settings = Settings(
+        auth_required=True,
+        tenant_api_keys_json=json.dumps({tenant_id: api_key}),
+        database_url=DATABASE_URL,
+    )
+    application = create_app(settings=settings)
+    try:
+        with TestClient(application) as client:
+            assert client.get("/health").status_code == 200
+            ingest = client.post(
+                "/v1/documents",
+                headers={"X-API-Key": api_key},
+                json={
+                    "document_id": document_id,
+                    "title": "PostgreSQL application smoke",
+                    "source": "test://application",
+                    "text": "A PostgreSQL application stores indexed tenant evidence.",
+                },
+            )
+            assert ingest.status_code == 201
+            result = client.post(
+                "/v1/query",
+                headers={"X-API-Key": api_key},
+                json={"question": "PostgreSQL indexed tenant evidence", "top_k": 3},
+            )
+            assert result.status_code == 200
+            assert result.json()["retrieval_method"] == "postgresql_fts"
+            assert result.json()["citations"][0]["document_id"] == document_id
     finally:
         postgres_store.delete_document(document_id, tenant_id=tenant_id)
