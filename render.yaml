@@ -11,6 +11,8 @@ services:
     envVars:
       - key: SENTIMENT_API_KEY
         sync: false
+      - key: SENTIMENT_REQUIRE_API_KEY
+        value: "true"
       - key: SENTIMENT_INFERENCE_BATCH_SIZE
         value: "8"
       - key: SENTIMENT_CPU_THREADS
