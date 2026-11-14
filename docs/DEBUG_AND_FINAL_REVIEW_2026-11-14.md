@@ -88,15 +88,16 @@ Two open PRs still propose overlapping pgvector/hybrid-retrieval work. They shou
 
 - [Open PR #4](https://github.com/arshiataheri851-ops/arshiataheri851-ops/pull/4)
 - Its Ruff import-order failure was corrected on branch `feat/atlasrag-pgvector-hybrid` in commit `89a742c596e740f38e4d88ae820bb623594c42d7`.
-- Python checks passed after that correction.
-- Compose smoke and benchmark checks were still running at the time of this report.
+- A subsequent benchmark run exposed that the evaluation workflow still used plain `postgres:16` without the pgvector extension. The workflow now uses `pgvector/pgvector:pg16` in commit `9858039735420d79e50b531d8452c45afde8b140`.
+- Python checks are green; the rerun's Compose smoke and benchmark jobs were still running at the time of this report update.
 
 ### PR #5 — tenant-scoped hybrid vector retrieval
 
 - [Open PR #5](https://github.com/arshiataheri851-ops/arshiataheri851-ops/pull/5)
 - Its earlier Compose run failed because FastEmbed rejected `intfloat/multilingual-e5-small` as a built-in model name.
 - The branch was updated in commit `0757a5960a6910040d8c52bf7674ebd065a6d775` to register the published ONNX model as a custom 384-dimensional model before initialization.
-- CI for this follow-up change was queued at report time; do not treat the fix as verified until the branch's Compose smoke test passes.
+- The follow-up branch checks are now green: Python 3.11/3.12, application tests, benchmark, and Docker Compose smoke all passed in [run 43598923048](https://github.com/arshiataheri851-ops/arshiataheri851-ops/actions/runs/43598923048).
+- PR #5 is the more fully verified of the two overlapping alternatives at this point, but it has not been merged.
 
 Neither PR has been merged into `main`. Select one implementation after the final branch checks and a review of the resulting schema, migrations, embedding backfill, and retrieval evaluation.
 
