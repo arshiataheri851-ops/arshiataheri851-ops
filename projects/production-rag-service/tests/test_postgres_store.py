@@ -169,3 +169,55 @@ def test_fastapi_application_uses_postgres_backend_and_closes_pool(postgres_stor
             assert result.json()["citations"][0]["document_id"] == document_id
     finally:
         postgres_store.delete_document(document_id, tenant_id=tenant_id)
+
+
+class FakeEmbedder:
+    def _vector(self, text):
+        values = [0.0] * 384
+        normalized = text.casefold()
+        values[0 if any(term in normalized for term in ("account", "recovery", "access")) else 1] = 1.0
+        return values
+
+    def embed_documents(self, texts):
+        return [self._vector(text) for text in texts]
+
+    def embed_query(self, text):
+        return self._vector(text)
+
+
+def test_postgres_vector_and_hybrid_retrieval_are_tenant_scoped():
+    suffix = uuid4().hex
+    tenant_a = f"vector_a_{suffix}"
+    tenant_b = f"vector_b_{suffix}"
+    relevant_id = f"vector-relevant-{suffix}"
+    unrelated_id = f"vector-unrelated-{suffix}"
+    store = PostgresStore(DATABASE_URL, embedder=FakeEmbedder())
+    try:
+        store.upsert_document(
+            relevant_id, "Account recovery", None, {},
+            ["How to recover access to an account when credentials are lost."],
+            tenant_id=tenant_a,
+        )
+        store.upsert_document(
+            unrelated_id, "Garden notes", None, {},
+            ["Water the plants every morning during warm weather."],
+            tenant_id=tenant_a,
+        )
+        semantic = store.search_semantic_chunks(
+            "How can I regain account access?", 5, tenant_id=tenant_a
+        )
+        assert semantic
+        assert semantic[0]["document_id"] == relevant_id
+        assert store.search_semantic_chunks(
+            "How can I regain account access?", 5, tenant_id=tenant_b
+        ) == []
+        hybrid = store.search_hybrid_chunks(
+            "How can I regain account access?", 5, tenant_id=tenant_a
+        )
+        assert hybrid
+        assert hybrid[0]["document_id"] == relevant_id
+        assert store.retrieval_method == "postgresql_hybrid_fts_vector"
+    finally:
+        store.delete_document(relevant_id, tenant_id=tenant_a)
+        store.delete_document(unrelated_id, tenant_id=tenant_a)
+        store.close()
