@@ -22,6 +22,8 @@ services:
       - "127.0.0.1:8002:8000"
     environment:
       RAG_DATABASE_PATH: /srv/app/data/atlasrag.sqlite3
+      RAG_AUTH_REQUIRED: "true"
+      RAG_TENANT_API_KEYS_JSON: ${ATLASRAG_TENANT_API_KEYS_JSON:-}
     volumes:
       - atlasrag-data:/srv/app/data
     healthcheck:
