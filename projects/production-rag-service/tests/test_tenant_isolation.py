@@ -1,8 +1,3 @@
-from app.main import create_app
-from app.config import Settings
-from app.store import SQLiteStore
-
-
 def test_protected_routes_reject_missing_and_invalid_api_keys(client):
     assert client.get("/v1/documents", headers={}).status_code == 401
     assert client.post(
