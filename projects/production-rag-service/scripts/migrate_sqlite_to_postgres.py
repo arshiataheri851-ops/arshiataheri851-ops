@@ -12,15 +12,15 @@ import sqlite3
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from app.postgres_store import PostgresStore
-from app.retrieval import normalize_text
-from app.store import TenantDocumentConflict
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.postgres_store import PostgresStore  # noqa: E402
+from app.retrieval import normalize_text  # noqa: E402
+from app.store import TenantDocumentConflict  # noqa: E402
 
 
 def migrate(sqlite_path: str, database_url: str) -> dict[str, int]:
