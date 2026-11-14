@@ -121,6 +121,10 @@ The fixed SnappFood test-split evaluation completed on 2026-11-12 with **93.32% 
 
 The current result supports a private staging deployment or a limited monitored pilot after the operational controls below are configured. It does not approve unrestricted public traffic or external performance/SLA claims.
 
+## Shared local Docker Compose stack
+
+From the repository root, copy `.env.example` to `.env` and set `SENTIMENT_API_KEY` to an independently generated random secret of at least 32 characters before starting FarsiPulse with Compose. Compose sets `SENTIMENT_REQUIRE_API_KEY=true`, so the service refuses to start if the key is missing or too short. Do not commit `.env`. All demo ports bind to loopback only; AtlasRAG remains unauthenticated and must stay local, while RelayForge requires separate producer and operator tokens.
+
 ## Docker and deployment
 
 ```bash
