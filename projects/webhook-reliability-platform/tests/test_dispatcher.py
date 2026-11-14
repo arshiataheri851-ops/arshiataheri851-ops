@@ -35,9 +35,15 @@ def test_hmac_signature_verification_and_tamper_detection():
 def test_retry_then_dead_letter_and_success():
     dispatcher = configured_dispatcher()
     delivery_id = dispatcher.enqueue_event("evt-2", "invoice.paid", {}, 100)[0]
-    first = dispatcher.dispatch(delivery_id, lambda *_: 503, timestamp=101, max_attempts=2)
+    first = dispatcher.dispatch(
+        delivery_id, lambda *_: 503, timestamp=101, max_attempts=2,
+        base_delay_seconds=0,
+    )
     assert first.status == "retry"
-    second = dispatcher.dispatch(delivery_id, lambda *_: 503, timestamp=102, max_attempts=2)
+    second = dispatcher.dispatch(
+        delivery_id, lambda *_: 503, timestamp=102, max_attempts=2,
+        base_delay_seconds=0,
+    )
     assert second.status == "dead_letter"
     assert second.attempts == 2
 

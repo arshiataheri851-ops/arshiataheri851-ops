@@ -2,6 +2,21 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 
+PRODUCER_TOKEN = "p" * 40
+OPERATOR_TOKEN = "o" * 40
+
+
+def make_client(sender=None, *, authenticated=True):
+    client = TestClient(create_app(
+        sender=sender, api_token=PRODUCER_TOKEN, operator_token=OPERATOR_TOKEN
+    ))
+    if authenticated:
+        client.headers.update({
+            "X-RelayForge-API-Key": PRODUCER_TOKEN,
+            "X-RelayForge-Operator-Key": OPERATOR_TOKEN,
+        })
+    return client
+
 
 def fake_sender(url: str, body: str, headers: dict[str, str]) -> int:
     assert url.startswith("https://")
@@ -20,7 +35,7 @@ def subscription_payload() -> dict:
 
 
 def test_event_ingestion_and_injected_dispatch():
-    client = TestClient(create_app(sender=fake_sender))
+    client = make_client(sender=fake_sender)
     assert client.post("/subscriptions", json=subscription_payload()).status_code == 201
 
     event_payload = {
@@ -45,7 +60,7 @@ def test_event_ingestion_and_injected_dispatch():
 
 
 def test_reusing_event_id_with_different_payload_is_rejected():
-    client = TestClient(create_app())
+    client = make_client()
     client.post("/subscriptions", json=subscription_payload())
     first = {
         "event_id": "same-id",
@@ -59,13 +74,13 @@ def test_reusing_event_id_with_different_payload_is_rejected():
 
 
 def test_dispatch_without_transport_is_explicitly_unavailable():
-    client = TestClient(create_app())
+    client = make_client()
     response = client.post("/deliveries/missing/dispatch?timestamp=1")
     assert response.status_code == 503
 
 
 def test_secrets_are_never_returned_from_subscription_listing():
-    client = TestClient(create_app())
+    client = make_client()
     client.post("/subscriptions", json=subscription_payload())
     response = client.get("/subscriptions")
     assert response.status_code == 200
@@ -73,7 +88,7 @@ def test_secrets_are_never_returned_from_subscription_listing():
 
 
 def test_subscription_cannot_be_removed_with_pending_deliveries():
-    client = TestClient(create_app())
+    client = make_client()
     client.post("/subscriptions", json=subscription_payload())
     client.post("/events", json={
         "event_id": "evt-pending",
@@ -86,7 +101,46 @@ def test_subscription_cannot_be_removed_with_pending_deliveries():
 
 
 def test_invalid_subscription_url_is_rejected():
-    client = TestClient(create_app())
+    client = make_client()
     payload = subscription_payload()
     payload["url"] = "http://example.com/hook"
     assert client.post("/subscriptions", json=payload).status_code == 422
+
+
+def test_management_and_delivery_routes_require_operator_token():
+    client = make_client(authenticated=False)
+    assert client.get("/subscriptions").status_code == 401
+    assert client.get("/deliveries").status_code == 401
+    assert client.post("/subscriptions", json=subscription_payload()).status_code == 401
+
+
+def test_event_ingestion_requires_producer_token():
+    client = make_client(authenticated=False)
+    event_payload = {
+        "event_id": "evt-auth", "event_type": "order.created",
+        "payload": {}, "timestamp": 1700000000,
+    }
+    assert client.post("/events", json=event_payload).status_code == 401
+
+
+def test_missing_auth_configuration_fails_closed():
+    client = TestClient(create_app())
+    assert client.post("/events", json={
+        "event_id": "evt-unconfigured", "event_type": "order.created",
+        "payload": {}, "timestamp": 1700000000,
+    }).status_code == 503
+
+
+def test_redrive_rejected_after_subscription_removal():
+    client = make_client()
+    assert client.post("/subscriptions", json=subscription_payload()).status_code == 201
+    event = client.post("/events", json={
+        "event_id": "evt-dead", "event_type": "order.created",
+        "payload": {}, "timestamp": 1700000000,
+    })
+    delivery_id = event.json()["delivery_ids"][0]
+    dispatcher = client.app.state.dispatcher
+    dispatcher.dispatch(delivery_id, lambda *_: 503, timestamp=1700000001, max_attempts=1)
+    assert dispatcher.get_delivery(delivery_id).status == "dead_letter"
+    assert client.delete("/subscriptions/orders").status_code == 409
+    assert client.post(f"/deliveries/{delivery_id}/redrive").status_code == 200
