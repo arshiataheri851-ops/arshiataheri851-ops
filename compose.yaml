@@ -15,17 +15,34 @@ services:
       - farsipulse-model-cache:/home/app/.cache/huggingface
     restart: unless-stopped
 
+  atlasrag-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: atlasrag
+      POSTGRES_USER: atlasrag
+      POSTGRES_PASSWORD: ${ATLASRAG_DB_PASSWORD:?Set ATLASRAG_DB_PASSWORD in .env}
+    volumes:
+      - atlasrag-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlasrag -d atlasrag"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
   atlasrag:
     build:
       context: ./projects/production-rag-service
     ports:
       - "127.0.0.1:8002:8000"
     environment:
-      RAG_DATABASE_PATH: /srv/app/data/atlasrag.sqlite3
+      RAG_DATABASE_URL: postgresql://atlasrag:${ATLASRAG_DB_PASSWORD}@atlasrag-db:5432/atlasrag
       RAG_AUTH_REQUIRED: "true"
       RAG_TENANT_API_KEYS_JSON: ${ATLASRAG_TENANT_API_KEYS_JSON:-}
-    volumes:
-      - atlasrag-data:/srv/app/data
+    depends_on:
+      atlasrag-db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
@@ -53,5 +70,5 @@ services:
 
 volumes:
   farsipulse-model-cache:
-  atlasrag-data:
+  atlasrag-postgres-data:
   relayforge-data:
