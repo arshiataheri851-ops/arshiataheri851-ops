@@ -80,6 +80,57 @@ projects:
               mountPath: /srv/app/data
               sizeGB: 1
 
+          - type: web
+            name: farsipulse-site
+            runtime: static
+            buildCommand: "true"
+            staticPublishPath: ./projects/persian-sentiment-api/site
+            autoDeployTrigger: off
+            headers:
+              - path: /*
+                name: X-Content-Type-Options
+                value: nosniff
+              - path: /*
+                name: Referrer-Policy
+                value: strict-origin-when-cross-origin
+              - path: /*
+                name: X-Frame-Options
+                value: DENY
+
+          - type: web
+            name: atlasrag-site
+            runtime: static
+            buildCommand: "true"
+            staticPublishPath: ./projects/production-rag-service/site
+            autoDeployTrigger: off
+            headers:
+              - path: /*
+                name: X-Content-Type-Options
+                value: nosniff
+              - path: /*
+                name: Referrer-Policy
+                value: strict-origin-when-cross-origin
+              - path: /*
+                name: X-Frame-Options
+                value: DENY
+
+          - type: web
+            name: relayforge-site
+            runtime: static
+            buildCommand: "true"
+            staticPublishPath: ./projects/webhook-reliability-platform/site
+            autoDeployTrigger: off
+            headers:
+              - path: /*
+                name: X-Content-Type-Options
+                value: nosniff
+              - path: /*
+                name: Referrer-Policy
+                value: strict-origin-when-cross-origin
+              - path: /*
+                name: X-Frame-Options
+                value: DENY
+
         databases:
           - name: atlasrag-postgres
             plan: basic-256mb
