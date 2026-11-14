@@ -4,6 +4,7 @@ import hashlib
 import hmac
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.responses import Response
 
 from .answering import build_grounded_answer
 from .chunking import split_text
@@ -21,6 +22,7 @@ from .schemas import (
     QueryIn,
     QueryResponse,
 )
+from .observability import audit_event, instrument_api, metrics_response
 from .postgres_store import PostgresStore
 from .store import SQLiteStore, TenantDocumentConflict
 
@@ -69,6 +71,7 @@ def create_app(
     api.state.settings = cfg
     api.state.store = database
     api.state.retriever = ranker
+    instrument_api(api)
 
     def ingest_one(payload: DocumentIn, request: Request, tenant_id: str) -> IngestResponse:
         current_settings = request.app.state.settings
@@ -84,6 +87,10 @@ def create_app(
             )
         except TenantDocumentConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        audit_event(
+            "document.upsert", tenant_id, document_id=payload.document_id,
+            outcome="replaced" if replaced else "created",
+        )
         return IngestResponse(
             document_id=payload.document_id, chunks_created=len(chunks),
             replaced_existing=replaced,
@@ -156,6 +163,7 @@ def create_app(
             )
             for document, item, was_replaced in zip(payload.documents, prepared, replaced, strict=True)
         ]
+        audit_event("document.batch_upsert", tenant_id, item_count=len(results))
         return BatchIngestResponse(accepted=len(results), results=results)
 
     @api.get("/v1/documents", tags=["documents"])
@@ -164,9 +172,11 @@ def create_app(
         offset: int = Query(default=0, ge=0),
         tenant_id: str = Depends(resolve_tenant),
     ) -> list[dict]:
-        return request.app.state.store.list_documents(
+        documents = request.app.state.store.list_documents(
             limit=limit, offset=offset, tenant_id=tenant_id
         )
+        audit_event("document.list", tenant_id, item_count=len(documents))
+        return documents
 
     @api.delete("/v1/documents/{document_id}", tags=["documents"])
     def delete_document(
@@ -176,6 +186,7 @@ def create_app(
         if not deleted:
             # Same response for missing and foreign-owned IDs prevents enumeration.
             raise HTTPException(status_code=404, detail="Document not found.")
+        audit_event("document.delete", tenant_id, document_id=document_id)
         return {"document_id": document_id, "deleted": True}
 
     @api.post("/v1/query", response_model=QueryResponse, tags=["retrieval"])
@@ -194,6 +205,7 @@ def create_app(
                 score=round(item["score"], 6),
             ) for item in results
         ]
+        audit_event("retrieval.query", tenant_id, item_count=len(results))
         return QueryResponse(
             answer=build_grounded_answer(payload.question, results),
             grounded=bool(results), citations=citations,
@@ -210,7 +222,28 @@ def create_app(
             lambda question, k: retrieve(question, k, request, tenant_id),
             payload.top_k,
         )
+        audit_event("retrieval.evaluate", tenant_id, item_count=len(payload.cases))
         return EvaluationResponse(**metrics)
+
+    @api.get("/metrics", include_in_schema=False, tags=["service"])
+    def metrics(
+        request: Request,
+        authorization: str | None = Header(default=None, alias="Authorization"),
+        x_metrics_token: str | None = Header(default=None, alias="X-Metrics-Token"),
+    ) -> Response:
+        expected = request.app.state.settings.metrics_token
+        if not expected:
+            raise HTTPException(status_code=404, detail="Not found.")
+        supplied = x_metrics_token
+        if authorization and authorization.lower().startswith("bearer "):
+            supplied = authorization[7:].strip()
+        if not supplied or not hmac.compare_digest(
+            hashlib.sha256(supplied.encode("utf-8")).digest(),
+            hashlib.sha256(expected.encode("utf-8")).digest(),
+        ):
+            raise HTTPException(status_code=401, detail="Invalid metrics credential.")
+        body, content_type = metrics_response()
+        return Response(content=body, media_type=content_type)
 
     return api
 
