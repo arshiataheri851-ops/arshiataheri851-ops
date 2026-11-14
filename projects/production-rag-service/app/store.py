@@ -14,10 +14,9 @@ class TenantDocumentConflict(ValueError):
 
 
 class SQLiteStore:
-    """Transactional SQLite store with tenant-filtered FTS5 retrieval.
+    """Transactional SQLite fallback for local tests and offline development."""
 
-    SQLite is a single-node backend. Every document operation is scoped by tenant_id.
-    """
+    retrieval_method = "sqlite_fts5"
 
     def __init__(self, database_path: str):
         self._memory_uri = None
@@ -49,6 +48,10 @@ class SQLiteStore:
             connection.execute("PRAGMA synchronous = NORMAL")
             connection.execute("PRAGMA cache_size = -20000")
         return connection
+
+    def health_check(self) -> bool:
+        with self._connect() as db:
+            return db.execute("SELECT 1").fetchone()[0] == 1
 
     def _initialize(self) -> None:
         with self._connect() as db:
