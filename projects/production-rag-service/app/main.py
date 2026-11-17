@@ -2,12 +2,15 @@
 
 import hashlib
 import hmac
+from threading import Lock
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from .answering import build_grounded_answer
+from .demo import check_demo_rate_limit, list_demo_documents, query_demo
 from .chunking import split_text
 from .config import Settings, get_settings
 from .evaluation import evaluate_retrieval
@@ -80,9 +83,23 @@ def create_app(
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://eryndex.pages.dev",
+            "https://eryndex.net",
+            "https://www.eryndex.net",
+        ],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key"],
+        max_age=600,
+    )
     api.state.settings = cfg
     api.state.store = database
     api.state.retriever = ranker
+    api.state.demo_rate_limit_lock = Lock()
+    api.state.demo_rate_limit_windows = {}
     instrument_api(api)
 
     def ingest_one(payload: DocumentIn, request: Request, tenant_id: str) -> IngestResponse:
@@ -122,6 +139,18 @@ def create_app(
     @api.get("/", tags=["service"])
     def root() -> dict[str, str]:
         return {"service": "atlasrag", "version": api.version, "docs": "/docs", "health": "/health"}
+
+    @api.get("/demo/documents", tags=["public demo"])
+    def demo_documents(request: Request) -> list[dict[str, str]]:
+        check_demo_rate_limit(request)
+        return list_demo_documents()
+
+    @api.post("/demo/query", response_model=QueryResponse, tags=["public demo"])
+    def demo_query(payload: QueryIn, request: Request) -> QueryResponse:
+        check_demo_rate_limit(request)
+        if len(payload.question) > 1_000:
+            raise HTTPException(status_code=413, detail="Demo question exceeds 1,000 characters.")
+        return query_demo(payload)
 
     @api.get("/health", tags=["service"])
     def health(request: Request) -> dict[str, str]:
