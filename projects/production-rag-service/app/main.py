@@ -6,6 +6,7 @@ from threading import Lock
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from .answering import build_grounded_answer
@@ -81,6 +82,18 @@ def create_app(
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,
+    )
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://eryndex.pages.dev",
+            "https://eryndex.net",
+            "https://www.eryndex.net",
+        ],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key"],
+        max_age=600,
     )
     api.state.settings = cfg
     api.state.store = database
